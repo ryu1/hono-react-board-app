@@ -1,0 +1,16 @@
+{
+  "name": "my-fullstack-app",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev": "concurrently -n \"Hono,ReactRouter\" -c \"blue,magenta\" \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "test": "pnpm -r test",
+    "test:backend": "pnpm --filter backend test",
+    "test:frontend": "pnpm --filter frontend test",
+    "install:all": "pnpm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
