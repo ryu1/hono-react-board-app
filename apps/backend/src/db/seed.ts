@@ -11,3 +11,5 @@ export async function seed() {
     { id: 'col-done', title: 'Done ✅', position: 2 },
   ])
 }
+
+seed().catch(console.error)
