@@ -1,29 +1,11 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-import { createInsertSchema } from 'drizzle-zod'
 import { z } from 'zod'
+import { TaskModelSchema, ColumnModelSchema } from '../../generated/zod/schemas/variants/pure'
 
-export const columns = sqliteTable('columns', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  position: integer('position').notNull(),
-})
-
-export const tasks = sqliteTable('tasks', {
-  id: text('id').primaryKey(),
-  columnId: text('column_id')
-    .notNull()
-    .references(() => columns.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  description: text('description'),
-  position: integer('position').notNull(),
+export const insertTaskSchema = TaskModelSchema.omit({ column: true }).extend({
+  description: z.string().nullish(),
+  position: z.coerce.number().int(),
 })
 
-export const insertTaskSchema = createInsertSchema(tasks, {
-  title: (schema) => schema.title.min(1, 'タイトルは必須です'),
-  position: () => z.coerce.number().int(),
-})
-export const insertColumnSchema = createInsertSchema(columns, {
-  title: (schema) => schema.title.min(1, 'タイトルは必須です'),
-})
+export const insertColumnSchema = ColumnModelSchema.omit({ tasks: true })
 
 export type CreateTaskInput = z.infer<typeof insertTaskSchema>

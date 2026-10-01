@@ -7,7 +7,7 @@
 
 ## 1. 概要
 
-pnpm ワークスペースを用いたモノレポ構成で、Hono RPC、React Router v7 (SPA モード)、Drizzle ORM、Conform、Zod を組み合わせた End-to-End 型安全なインタラクティブ・タスクボード（カンバンアプリ）を構築する。
+pnpm ワークスペースを用いたモノレポ構成で、Hono RPC、React Router v7 (SPA モード)、Prisma ORM、Conform、Zod を組み合わせた End-to-End 型安全なインタラクティブ・タスクボード（カンバンアプリ）を構築する。
 
 ### 1.1 目的・ゴール
 
@@ -42,14 +42,16 @@ my-fullstack-app/
 ├── pnpm-workspace.yaml
 ├── package.json                    # root scripts + concurrently
 ├── apps/
-│   ├── backend/                    # Hono + Drizzle + libsql
+│   ├── backend/                    # Hono + Prisma
 │   │   ├── src/
 │   │   │   ├── db/
-│   │   │   │   ├── schema.ts       # Drizzle schema + Zod schemas
-│   │   │   │   ├── index.ts        # DB connection
+│   │   │   │   ├── schema.ts       # 生成 Zod スキーマのアダプタ
+│   │   │   │   ├── index.ts        # DB connection (PrismaClient)
 │   │   │   │   └── seed.ts         # Initial data seeding
 │   │   │   └── index.ts            # Hono app with RPC routes
-│   │   ├── drizzle.config.ts
+│   │   ├── prisma/
+│   │   │   └── schema.prisma       # Prisma schema + @zod 注釈
+│   │   ├── prisma.config.ts        # datasource URL 設定
 │   │   └── package.json
 │   └── frontend/                   # React Router v7 SPA
 │       ├── app/
@@ -73,9 +75,10 @@ my-fullstack-app/
 | Package Manager | pnpm | 12.8.2 |
 | Runtime | Node.js | 26.10.0 |
 | Backend Framework | Hono | latest |
-| Database | SQLite (libsql) | latest |
-| ORM | Drizzle ORM | latest |
-| Validation | Zod | 3.23.8 |
+| Database | SQLite (better-sqlite3) | latest |
+| ORM | Prisma ORM | 7.x |
+| Zod 生成 | prisma-zod-generator | 3.x |
+| Validation | Zod | 3.25.x |
 | Frontend Framework | React Router v7 (SPA) | latest |
 | Forms | Conform | latest |
 | Testing | Vitest + React Testing Library | latest |
@@ -84,14 +87,14 @@ my-fullstack-app/
 ### 2.3 データフロー
 
 ```
-┌─────────────┐     RPC (hc)      ┌─────────────┐     Drizzle      ┌──────────┐
+┌─────────────┐     RPC (hc)      ┌─────────────┐      Prisma      ┌──────────┐
 │  Frontend   │ ◄───────────────► │   Backend   │ ◄─────────────►  │ SQLite   │
-│ (React R7)  │   JSON + Types    │   (Hono)    │   Type-safe SQL  │ (libsql) │
+│ (React R7)  │   JSON + Types    │   (Hono)    │  Type-safe ORM   │(better-sqlite3)
 └─────────────┘                   └─────────────┘                  └──────────┘
        │                                │
        │                                │
        ▼                                ▼
-  useLoaderData                  zValidator + Drizzle
+  useLoaderData                  zValidator + Prisma
   useFetcher (actions)           schema validation
   optimistic UI                  seed on startup
 ```
@@ -102,7 +105,7 @@ my-fullstack-app/
 
 ### 3.1 共有パッケージ (`@my-app/shared`)
 
-**責務**: バックエンドの Drizzle スキーマから自動生成される Zod スキーマをフロントエンドへ中継・エクスポート
+**責務**: バックエンドの Prisma スキーマから `prisma-zod-generator` により自動生成される Zod スキーマをフロントエンドへ中継・エクスポート
 
 **エクスポート**:
 - `insertTaskSchema` - タスク作成用 Zod スキーマ
@@ -111,7 +114,7 @@ my-fullstack-app/
 
 ### 3.2 バックエンド (`apps/backend`)
 
-#### 3.2.1 データベーススキーマ (`src/db/schema.ts`)
+#### 3.2.1 データベーススキーマ (`prisma/schema.prisma` + `src/db/schema.ts`)
 
 ```typescript
 // columns テーブル
@@ -126,6 +129,9 @@ my-fullstack-app/
 - description: text (nullable)
 - position: integer (NOT NULL)
 ```
+
+`src/db/schema.ts` は生成済み Zod スキーマ (`TaskModelSchema` / `ColumnModelSchema`) を import し、
+`position` の文字列 coerce と `description` の nullish 正規化を行うアダプタとして機能する。
 
 #### 3.2.2 API エンドポイント (`src/index.ts`)
 
@@ -189,8 +195,8 @@ export const client = hc<AppType>('http://localhost:3000/')
 ### 4.1 バックエンド
 
 - `zValidator` による自動バリデーション（失敗時 400 + エラー詳細）
-- Drizzle エラーは try-catch で捕捉、500 返却
-- 存在しないリソース: 404
+- Prisma エラーは try-catch で捕捉、500 返却
+- 存在しないリソース: 404（`updateMany` / `deleteMany` の count で判定）
 
 ### 4.2 フロントエンド
 
@@ -230,8 +236,8 @@ export const client = hc<AppType>('http://localhost:3000/')
 
 ```bash
 cd my-fullstack-app
-pnpm install
-cd apps/backend && pnpm drizzle-kit push
+pnpm install                 # postinstall で prisma generate が自動実行
+cd apps/backend && pnpm db:push
 cd ../..
 pnpm dev
 ```
@@ -261,7 +267,7 @@ pnpm dev
 2. **リアルタイム**: WebSocket (Hono ws) + React Router subscriptions
 3. **複数ボード**: `boards` テーブル追加、ルートパラメータで切替
 4. **並び替え**: `@dnd-kit` 導入、position 正規化バッチ処理
-5. **PostgreSQL 移行**: Drizzle dialect 変更のみで移行可能
+5. **PostgreSQL 移行**: Prisma datasource provider 変更のみで移行可能
 
 ---
 

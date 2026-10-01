@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { eq } from 'drizzle-orm'
 import app from './index'
 import { db } from './db'
-import { tasks } from './db/schema'
 import { seed } from './db/seed'
 
 beforeAll(async () => {
-  await db.delete(tasks).where(eq(tasks.id, 'test-task-1'))
+  await db.task.deleteMany({ where: { id: 'test-task-1' } })
   await seed()
 })
 

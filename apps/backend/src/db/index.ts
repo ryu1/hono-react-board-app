@@ -1,6 +1,8 @@
-import { drizzle } from 'drizzle-orm/libsql'
-import { createClient } from '@libsql/client'
-import * as schema from './schema'
+import { fileURLToPath } from 'node:url'
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaClient } from '../../generated/prisma/client'
 
-const client = createClient({ url: 'file:local.db' })
-export const db = drizzle(client, { schema })
+const dbUrl = 'file:' + fileURLToPath(new URL('../../local.db', import.meta.url))
+const adapter = new PrismaBetterSqlite3({ url: dbUrl })
+
+export const db = new PrismaClient({ adapter })

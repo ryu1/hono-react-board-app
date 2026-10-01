@@ -6,4 +6,4 @@ dist
 build
 .react-router
 apps/backend/local.db
-apps/backend/drizzle/meta
+apps/backend/generated

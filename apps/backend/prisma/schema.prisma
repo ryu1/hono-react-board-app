@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+generator zod {
+  provider   = "prisma-zod-generator"
+  output     = "../generated/zod"
+  pureModels = true
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Column {
+  id       String @id
+  /// @zod.min(1, 'タイトルは必須です')
+  title    String
+  position Int
+  tasks    Task[]
+
+  @@map("columns")
+}
+
+model Task {
+  id          String  @id
+  columnId    String  @map("column_id")
+  /// @zod.min(1, 'タイトルは必須です')
+  title       String
+  description String?
+  position    Int
+  column      Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
