@@ -2,5 +2,7 @@ node_modules
 *.local
 .DS_Store
 dist
+build
+.react-router
 apps/backend/local.db
 apps/backend/drizzle/meta

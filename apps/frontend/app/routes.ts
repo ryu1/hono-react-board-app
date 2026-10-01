@@ -1,3 +1,5 @@
 import type { RouteConfig } from '@react-router/dev/routes'
 
-export default [] satisfies RouteConfig
+export default [
+  { path: '/', file: './routes/board.tsx' },
+] satisfies RouteConfig
