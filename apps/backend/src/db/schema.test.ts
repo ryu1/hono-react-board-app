@@ -21,6 +21,17 @@ describe('insertTaskSchema', () => {
     })
     expect(result.success).toBe(true)
   })
+
+  it('accepts string position from FormData (coerces to number)', () => {
+    const result = insertTaskSchema.safeParse({
+      id: 't1',
+      columnId: 'c1',
+      title: 'From form',
+      position: '2',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.position).toBe(2)
+  })
 })
 
 describe('insertColumnSchema', () => {

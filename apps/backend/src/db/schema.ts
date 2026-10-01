@@ -20,6 +20,7 @@ export const tasks = sqliteTable('tasks', {
 
 export const insertTaskSchema = createInsertSchema(tasks, {
   title: (schema) => schema.title.min(1, 'タイトルは必須です'),
+  position: () => z.coerce.number().int(),
 })
 export const insertColumnSchema = createInsertSchema(columns, {
   title: (schema) => schema.title.min(1, 'タイトルは必須です'),
