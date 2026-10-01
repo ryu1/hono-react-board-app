@@ -51,11 +51,17 @@ const routes = app
       .set({ columnId, position })
       .where(eq(tasks.id, id))
       .returning()
+    if (!updated) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
     return c.json({ success: true, data: updated })
   })
   .delete('/api/tasks/:id', async (c) => {
     const id = c.req.param('id')
-    await db.delete(tasks).where(eq(tasks.id, id))
+    const [deleted] = await db.delete(tasks).where(eq(tasks.id, id)).returning()
+    if (!deleted) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
     return c.json({ success: true, id })
   })
   .put('/api/tasks/update', zValidator('json', updateTaskSchema), async (c) => {
@@ -65,6 +71,9 @@ const routes = app
       .set({ title, description })
       .where(eq(tasks.id, id))
       .returning()
+    if (!updated) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
     return c.json({ success: true, data: updated })
   })
 

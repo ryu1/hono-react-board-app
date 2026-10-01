@@ -35,9 +35,42 @@ export async function clientAction({ request }: { request: Request }) {
   return submission.reply({ resetForm: true })
 }
 
+function CreateForm({
+  column,
+  taskCount,
+}: {
+  column: { id: string; title: string; position: number }
+  taskCount: number
+}) {
+  const fetcher = useFetcher<typeof clientAction>()
+  const [form, fields] = useForm({
+    lastResult: fetcher.data as any,
+    onValidate({ formData }) {
+      return parseWithZod(formData, { schema: insertTaskSchema })
+    },
+    shouldValidate: 'onBlur',
+  })
+
+  return (
+    <fetcher.Form method="post" {...getFormProps(form)} style={styles.form}>
+      <input {...getInputProps(fields.id, { type: 'hidden' })} value={crypto.randomUUID()} readOnly />
+      <input {...getInputProps(fields.columnId, { type: 'hidden' })} value={column.id} readOnly />
+      <input {...getInputProps(fields.position, { type: 'hidden' })} value={taskCount} readOnly />
+      <input
+        {...getInputProps(fields.title, { type: 'text' })}
+        placeholder="+ 新しいタスク..."
+        style={styles.input}
+      />
+      {fields.title.errors && (
+        <div style={{ color: '#dc2626', fontSize: '12px' }}>{fields.title.errors}</div>
+      )}
+      <button type="submit" style={styles.button}>追加</button>
+    </fetcher.Form>
+  )
+}
+
 export default function Board() {
   const { columns, tasks: serverTasks } = useLoaderData<typeof clientLoader>()
-  const fetcher = useFetcher<typeof clientAction>()
   const moveFetcher = useFetcher()
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
@@ -65,14 +98,6 @@ export default function Board() {
     })
     moveFetcher.load('/')
   }
-
-  const [form, fields] = useForm({
-    lastResult: fetcher.data as any,
-    onValidate({ formData }) {
-      return parseWithZod(formData, { schema: insertTaskSchema })
-    },
-    shouldValidate: 'onBlur',
-  })
 
   return (
     <div style={styles.container}>
@@ -153,17 +178,7 @@ export default function Board() {
                 ))}
               </div>
 
-              <fetcher.Form method="post" {...getFormProps(form)} style={styles.form}>
-                <input {...getInputProps(fields.id, { type: 'hidden' })} value={crypto.randomUUID()} readOnly />
-                <input {...getInputProps(fields.columnId, { type: 'hidden' })} value={column.id} readOnly />
-                <input {...getInputProps(fields.position, { type: 'hidden' })} value={columnTasks.length} readOnly />
-                <input
-                  {...getInputProps(fields.title, { type: 'text' })}
-                  placeholder="+ 新しいタスク..."
-                  style={styles.input}
-                />
-                <button type="submit" style={styles.button}>追加</button>
-              </fetcher.Form>
+              <CreateForm column={column} taskCount={columnTasks.length} />
             </div>
           )
         })}

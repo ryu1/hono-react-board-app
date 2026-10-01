@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { eq } from 'drizzle-orm'
 import app from './index'
+import { db } from './db'
+import { tasks } from './db/schema'
+import { seed } from './db/seed'
+
+beforeAll(async () => {
+  await db.delete(tasks).where(eq(tasks.id, 'test-task-1'))
+  await seed()
+})
 
 async function getBoard() {
   const res = await app.request('/api/board')
@@ -109,5 +118,49 @@ describe('DELETE /api/tasks/:id', () => {
     const data = await res.json()
     expect(data.success).toBe(true)
     expect(data.id).toBe('test-task-1')
+  })
+})
+
+describe('nonexistent resources return 404', () => {
+  it('PATCH /api/tasks/move returns 404 for a nonexistent id', async () => {
+    const res = await app.request('/api/tasks/move', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'does-not-exist-move',
+        columnId: 'col-progress',
+        position: 0,
+      }),
+    })
+    expect(res.status).toBe(404)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toBe('Not Found')
+  })
+
+  it('PUT /api/tasks/update returns 404 for a nonexistent id', async () => {
+    const res = await app.request('/api/tasks/update', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'does-not-exist-update',
+        title: 'Nope',
+        description: null,
+      }),
+    })
+    expect(res.status).toBe(404)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toBe('Not Found')
+  })
+
+  it('DELETE /api/tasks/:id returns 404 for a nonexistent id', async () => {
+    const res = await app.request('/api/tasks/does-not-exist-delete', {
+      method: 'DELETE',
+    })
+    expect(res.status).toBe(404)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toBe('Not Found')
   })
 })
