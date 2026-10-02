@@ -458,7 +458,7 @@ classDiagram
     
     class TaskAPI {
         +$post(json: CreateTaskInput): TaskResponse
-        +$delete(param: {id: string}): DeleteResponse
+        +$delete(param: string): DeleteResponse
         +update: UpdateAPI
         +move: MoveAPI
     }
