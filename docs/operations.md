@@ -168,10 +168,10 @@ flowchart TD
 
     C --> C1[ブラウザコンソールエラー確認]
     C1 --> C2[Network タブ: 失敗リクエスト特定]
-    C2 --> C3[Next.js dev server 起動確認 (ポート 3000)]
-    C3 --> C4[RSC エラー確認: error.tsx 未実装]
+    C2 --> C3["Next.js dev server 起動確認 (ポート 3000)"]
+    C3 --> C4["RSC エラー確認: error.tsx 未実装"]
 
-    D --> D1[バックエンドログ確認 (ポート 3001)]
+    D --> D1["バックエンドログ確認 (ポート 3001)"]
     D1 --> D2[`curl /api/board` 直接叩き確認]
     D2 --> D3[CORS エラー確認: origin 許可リスト]
     D3 --> D4[Prisma エラー確認: DB 接続・スキーマ]
