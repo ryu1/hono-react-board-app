@@ -7,7 +7,7 @@ graph TD
     subgraph "Frontend (Next.js 15 App Router)"
         FE[apps/frontend]
         FE -->|hc<AppType>| RPC[Hono RPC Client]
-        FE -->|import| SHARED[@my-app/shared]
+        FE -->|import| SHARED["@my-app/shared"]
         FE -->|Server Actions| SA[Server Actions]
     end
 
