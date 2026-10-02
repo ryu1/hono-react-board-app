@@ -82,6 +82,5 @@
 
 ## 🔗 重要リンク
 
-- **API 仕様**: [`docs/api.md`](docs/api.md) (唯一の正本)
-- **リポジトリ**: [`github.com/ryu1/hono-react-board-app`](https://github.com/ryu1/hono-react-board-app)
-- **用語定義**: [`docs/glossary.md`](docs/glossary.md)
+- **デプロイ先**: 未設定
+- **外部 API**: なし
