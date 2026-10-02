@@ -1,0 +1,50 @@
+{
+  "node": {
+    "404bca3bdbec9eebdb0fb7d553a877e72bea3241c7": {
+      "workers": {
+        "app/page": {
+          "moduleId": "(action-browser)/../../node_modules/.pnpm/next@15.1.0_@babel+core@7.29.7_supports-color@8.1.1__@playwright+test@1.63.0_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fr.ishitsuka%2FRepositories%2Fgit%2Fhono-react-board-app%2Fapps%2Ffrontend%2Fapp%2Factions.ts%22%2C%5B%5B%22404bca3bdbec9eebdb0fb7d553a877e72bea3241c7%22%2C%22createTaskAction%22%5D%2C%5B%2240a712f5b037f819e0fcae2ceeb0010e88c9770a75%22%2C%22updateTaskAction%22%5D%2C%5B%2240b78b22243a9d87d1c620b909f47169df80d7677f%22%2C%22deleteTaskAction%22%5D%2C%5B%2240f91f95ec1dc768149b53daff0a08f0ceb183a2f5%22%2C%22moveTaskAction%22%5D%5D%5D%5D&__client_imported__=true!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      }
+    },
+    "40a712f5b037f819e0fcae2ceeb0010e88c9770a75": {
+      "workers": {
+        "app/page": {
+          "moduleId": "(action-browser)/../../node_modules/.pnpm/next@15.1.0_@babel+core@7.29.7_supports-color@8.1.1__@playwright+test@1.63.0_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fr.ishitsuka%2FRepositories%2Fgit%2Fhono-react-board-app%2Fapps%2Ffrontend%2Fapp%2Factions.ts%22%2C%5B%5B%22404bca3bdbec9eebdb0fb7d553a877e72bea3241c7%22%2C%22createTaskAction%22%5D%2C%5B%2240a712f5b037f819e0fcae2ceeb0010e88c9770a75%22%2C%22updateTaskAction%22%5D%2C%5B%2240b78b22243a9d87d1c620b909f47169df80d7677f%22%2C%22deleteTaskAction%22%5D%2C%5B%2240f91f95ec1dc768149b53daff0a08f0ceb183a2f5%22%2C%22moveTaskAction%22%5D%5D%5D%5D&__client_imported__=true!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      }
+    },
+    "40b78b22243a9d87d1c620b909f47169df80d7677f": {
+      "workers": {
+        "app/page": {
+          "moduleId": "(action-browser)/../../node_modules/.pnpm/next@15.1.0_@babel+core@7.29.7_supports-color@8.1.1__@playwright+test@1.63.0_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fr.ishitsuka%2FRepositories%2Fgit%2Fhono-react-board-app%2Fapps%2Ffrontend%2Fapp%2Factions.ts%22%2C%5B%5B%22404bca3bdbec9eebdb0fb7d553a877e72bea3241c7%22%2C%22createTaskAction%22%5D%2C%5B%2240a712f5b037f819e0fcae2ceeb0010e88c9770a75%22%2C%22updateTaskAction%22%5D%2C%5B%2240b78b22243a9d87d1c620b909f47169df80d7677f%22%2C%22deleteTaskAction%22%5D%2C%5B%2240f91f95ec1dc768149b53daff0a08f0ceb183a2f5%22%2C%22moveTaskAction%22%5D%5D%5D%5D&__client_imported__=true!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      }
+    },
+    "40f91f95ec1dc768149b53daff0a08f0ceb183a2f5": {
+      "workers": {
+        "app/page": {
+          "moduleId": "(action-browser)/../../node_modules/.pnpm/next@15.1.0_@babel+core@7.29.7_supports-color@8.1.1__@playwright+test@1.63.0_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fr.ishitsuka%2FRepositories%2Fgit%2Fhono-react-board-app%2Fapps%2Ffrontend%2Fapp%2Factions.ts%22%2C%5B%5B%22404bca3bdbec9eebdb0fb7d553a877e72bea3241c7%22%2C%22createTaskAction%22%5D%2C%5B%2240a712f5b037f819e0fcae2ceeb0010e88c9770a75%22%2C%22updateTaskAction%22%5D%2C%5B%2240b78b22243a9d87d1c620b909f47169df80d7677f%22%2C%22deleteTaskAction%22%5D%2C%5B%2240f91f95ec1dc768149b53daff0a08f0ceb183a2f5%22%2C%22moveTaskAction%22%5D%5D%5D%5D&__client_imported__=true!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "HHmD5G4OTQ7WVPxBPUYclUwoQqffpCSJ2d5LHP/BRWU="
+}
