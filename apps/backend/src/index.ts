@@ -8,7 +8,7 @@ import { seed } from './db/seed'
 
 const app = new Hono()
 
-app.use('/api/*', cors({ origin: 'http://localhost:5173' }))
+app.use('/api/*', cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }))
 
 seed().catch(console.error)
 
