@@ -112,16 +112,16 @@ erDiagram
     
     COLUMNS {
         String id PK
-        String title NOT_NULL
-        Int position NOT_NULL
+        String title
+        Int position
     }
     
     TASKS {
         String id PK
         String columnId FK
-        String title NOT_NULL
-        String description NULL
-        Int position NOT_NULL
+        String title
+        String description
+        Int position
     }
 ```
 
