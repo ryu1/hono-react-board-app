@@ -78,6 +78,5 @@
 | [`docs/glossary.md`](docs/glossary.md) | ユビキタス言語・英日対応表・命名規則パターン |
 | [`docs/documentation-guideline.md`](docs/documentation-guideline.md) | ドキュメント作成・更新規約・完了チェックリスト |
 
----
 
-## 📚 ドキュメント
+
