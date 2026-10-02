@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/images/logo.svg" alt="Hono React Board App Logo" width="180" height="180">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo.svg">
+    <img src="docs/images/logo.svg" alt="Hono React Board App Logo" width="180" height="180">
+  </picture>
 </p>
 
 <p align="center">
@@ -7,38 +10,38 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/your-org/hono-react-board-app/actions/workflows/ci.yml">
-    <img src="https://github.com/your-org/hono-react-board-app/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <a href="https://github.com/ryu1/hono-react-board-app/actions/workflows/ci.yml">
+    <img src="https://github.com/ryu1/hono-react-board-app/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://pnpm.io/">
-    <img src="https://img.shields.io/badge/pnpm-12.8.2-F69220?logo=pnpm" alt="pnpm version">
+    <img src="https://img.shields.io/badge/pnpm-12.8.2-F69220?logo=pnpm&logoColor=white" alt="pnpm version">
   </a>
   <a href="https://nodejs.org/">
-    <img src="https://img.shields.io/badge/Node.js-26.10.0-339933?logo=node.js" alt="Node.js version">
+    <img src="https://img.shields.io/badge/Node.js-26.10.0-339933?logo=node.js&logoColor=white" alt="Node.js version">
   </a>
   <a href="https://hono.dev/">
-    <img src="https://img.shields.io/badge/Hono-4.6-E36002?logo=hono" alt="Hono version">
+    <img src="https://img.shields.io/badge/Hono-4.6-E36002?logo=hono&logoColor=white" alt="Hono version">
   </a>
   <a href="https://nextjs.org/">
-    <img src="https://img.shields.io/badge/Next.js-15.1-000000?logo=next.js" alt="Next.js version">
+    <img src="https://img.shields.io/badge/Next.js-15.1-000000?logo=next.js&logoColor=white" alt="Next.js version">
   </a>
   <a href="https://www.prisma.io/">
-    <img src="https://img.shields.io/badge/Prisma-7.10-2D3748?logo=prisma" alt="Prisma version">
+    <img src="https://img.shields.io/badge/Prisma-7.10-2D3748?logo=prisma&logoColor=white" alt="Prisma version">
   </a>
   <a href="https://zod.dev/">
-    <img src="https://img.shields.io/badge/Zod-3.25-3E67B1?logo=zod" alt="Zod version">
+    <img src="https://img.shields.io/badge/Zod-3.25-3E67B1?logo=zod&logoColor=white" alt="Zod version">
   </a>
   <a href="https://conform.guide/">
-    <img src="https://img.shields.io/badge/Conform-1.2-000000?logo=conform" alt="Conform version">
+    <img src="https://img.shields.io/badge/Conform-1.2-000000?logo=conform&logoColor=white" alt="Conform version">
   </a>
   <a href="https://vitest.dev/">
-    <img src="https://img.shields.io/badge/Vitest-3.0-6E9F18?logo=vitest" alt="Vitest version">
+    <img src="https://img.shields.io/badge/Vitest-3.0-6E9F18?logo=vitest&logoColor=white" alt="Vitest version">
   </a>
   <a href="https://playwright.dev/">
-    <img src="https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright" alt="Playwright version">
+    <img src="https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright&logoColor=white" alt="Playwright version">
   </a>
   <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript" alt="TypeScript version">
+    <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white" alt="TypeScript version">
   </a>
 </p>
 
@@ -207,12 +210,7 @@ pnpm lint --fix  # 自動修正
 - **設計ドキュメント一覧**: [`docs/`](docs/)
 - **用語定義**: [`docs/glossary.md`](docs/glossary.md)
 - **AI アシスタント指示**: [`AGENTS.md`](AGENTS.md)
-
----
-
-## 📄 ライセンス
-
-MIT License - 詳細は [LICENSE](LICENSE) を参照
+- **リポジトリ**: [`github.com/ryu1/hono-react-board-app`](https://github.com/ryu1/hono-react-board-app)
 
 ---
 
