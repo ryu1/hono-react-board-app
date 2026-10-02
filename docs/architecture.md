@@ -367,21 +367,21 @@ export default function RootLayout({ children }) {
 
 ```mermaid
 flowchart LR
-    subgraph Frontend_RSC [RSC: page.tsx]
-        Load[client.api.board.$get()]
+    subgraph Frontend_RSC ["RSC: page.tsx"]
+        Load["client.api.board.\$get()"]
     end
 
-    subgraph Frontend_Client [Client Components]
-        Props[initialColumns, initialTasks]
-        State[useState tasks]
-        Actions[Server Actions: create/delete/update/move]
-        DnD[Drag & Drop: HTML5 API]
+    subgraph Frontend_Client ["Client Components"]
+        Props["initialColumns, initialTasks"]
+        State["useState tasks"]
+        Actions["Server Actions: create/delete/update/move"]
+        DnD["Drag & Drop: HTML5 API"]
     end
 
-    subgraph Backend [Hono + Prisma]
-        ZVal[zValidator: Zod バリデーション]
-        Prisma[Prisma Client]
-        Seed[起動時 seed()]
+    subgraph Backend ["Hono + Prisma"]
+        ZVal["zValidator: Zod バリデーション"]
+        Prisma["Prisma Client"]
+        Seed["起動時 seed()"]
     end
 
     Load -->|HTTP GET| ZVal
@@ -392,7 +392,7 @@ flowchart LR
     
     Props -.->|初期データ| State
     DnD -.->|移動操作| Actions
-    Actions -.->|完了| State[※楽観的更新なし]
+    Actions -.->|完了| State["※楽観的更新なし"]
 ```
 
 **注意**: 現状、Server Action 実行後のローカル状態自動更新（楽観的 UI や再取得）は未実装。手動リロードまたは実装追加が必要。
@@ -421,20 +421,20 @@ flowchart LR
 ## 7. ユースケース図
 
 ```mermaid
-useCaseDiagram
-    actor User
+flowchart LR
+    User((User))
     
-    User --> UC1: ボード表示 (RSC)
-    User --> UC2: タスク作成 (Server Action)
-    User --> UC3: タスク移動 (Server Action + DnD)
-    User --> UC4: タスク編集 (Server Action)
-    User --> UC5: タスク削除 (Server Action)
+    User --> UC1["ボード表示 (RSC)"]
+    User --> UC2["タスク作成 (Server Action)"]
+    User --> UC3["タスク移動 (Server Action + DnD)"]
+    User --> UC4["タスク編集 (Server Action)"]
+    User --> UC5["タスク削除 (Server Action)"]
     
-    UC1 --> Backend: GET /api/board
-    UC2 --> Backend: POST /api/tasks
-    UC3 --> Backend: PATCH /api/tasks/move
-    UC4 --> Backend: PUT /api/tasks/update
-    UC5 --> Backend: DELETE /api/tasks/:id
+    UC1 --> Backend["GET /api/board"]
+    UC2 --> Backend["POST /api/tasks"]
+    UC3 --> Backend["PATCH /api/tasks/move"]
+    UC4 --> Backend["PUT /api/tasks/update"]
+    UC5 --> Backend["DELETE /api/tasks/:id"]
 ```
 
 ---
@@ -448,13 +448,27 @@ classDiagram
     }
     
     class APIRoutes {
-        +board: { $get(): BoardResponse }
-        +tasks: { 
-            $post(json: CreateTaskInput): TaskResponse
-            $delete(param: {id: string}): DeleteResponse
-            update: { $put(json: UpdateTaskInput): TaskResponse }
-            move: { $patch(json: MoveTaskInput): TaskResponse }
-        }
+        +board: BoardAPI
+        +tasks: TaskAPI
+    }
+    
+    class BoardAPI {
+        +$get(): BoardResponse
+    }
+    
+    class TaskAPI {
+        +$post(json: CreateTaskInput): TaskResponse
+        +$delete(param: {id: string}): DeleteResponse
+        +update: UpdateAPI
+        +move: MoveAPI
+    }
+    
+    class UpdateAPI {
+        +$put(json: UpdateTaskInput): TaskResponse
+    }
+    
+    class MoveAPI {
+        +$patch(json: MoveTaskInput): TaskResponse
     }
     
     class BoardResponse {
@@ -497,10 +511,10 @@ classDiagram
     }
     
     AppType --> APIRoutes
-    APIRoutes --> BoardResponse
-    APIRoutes --> CreateTaskInput
-    APIRoutes --> MoveTaskInput
-    APIRoutes --> UpdateTaskInput
+    APIRoutes --> BoardAPI
+    APIRoutes --> TaskAPI
+    TaskAPI --> UpdateAPI
+    TaskAPI --> MoveAPI
     BoardResponse --> Column
     BoardResponse --> Task
 ```
