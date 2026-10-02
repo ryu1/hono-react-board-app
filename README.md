@@ -80,17 +80,17 @@ hono-react-board-app/
 
 ## 🛠 技術スタック
 
+詳細は [`docs/tech.md`](docs/tech.md) を参照してください。
+
 | カテゴリ | 技術 |
 |----------|------|
-| **Package Manager** | pnpm 12.8.2 (Workspace) |
-| **Runtime** | Node.js 26.10.0 |
-| **Backend** | Hono 4.6, Prisma ORM 7.10, better-sqlite3 |
-| **Frontend** | React 19, Next.js 15.1 (App Router, RSC, Server Actions), Conform 1.2 |
-| **Validation** | Zod 3.25 (prisma-zod-generator で自動生成) |
-| **Testing** | Vitest 3.0, React Testing Library 16, Playwright 1.63 |
-| **Dev Tools** | TypeScript 5.6, concurrently |
-
-詳細は [`docs/tech.md`](docs/tech.md) を参照
+| Package Manager | pnpm 12.8.2 (Workspace) |
+| Runtime | Node.js 26.10.0 |
+| Backend | Hono 4.6, Prisma ORM 7.10, better-sqlite3 |
+| Frontend | React 19, Next.js 15.1 (App Router, RSC, Server Actions), Conform 1.2 |
+| Validation | Zod 3.25 (prisma-zod-generator で自動生成) |
+| Testing | Vitest 3.0, React Testing Library 16, Playwright 1.63 |
+| Dev Tools | TypeScript 5.6, concurrently |
 
 ---
 
@@ -146,9 +146,7 @@ graph LR
 
 ## 🚀 クイックスタート
 
-### 前提条件
-- Node.js 26.10.0
-- pnpm 12.8.2
+詳細なセットアップ手順は [`docs/conventions.md#5-セットアップ手順`](docs/conventions.md#5-セットアップ手順) を参照してください。
 
 ```bash
 # 1. 依存インストール (Prisma generate 自動実行)
@@ -167,6 +165,8 @@ pnpm dev
 ---
 
 ## 🧪 テスト・品質チェック
+
+詳細は [`docs/conventions.md#8-デバッグトラブルシューティング`](docs/conventions.md#8-デバッグトラブルシューティング) を参照してください。
 
 ```bash
 # 全テスト実行 (E2E 除く)
