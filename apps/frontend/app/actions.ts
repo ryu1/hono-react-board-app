@@ -1,7 +1,8 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { client } from './client'
-import { insertTaskSchema } from '@my-app/shared'
+import { insertTaskSchema, insertSprintSchema, updateSprintSchema } from '@my-app/shared'
 import { parseWithZod } from '@conform-to/zod'
 
 export async function createTaskAction(formData: FormData) {
@@ -41,5 +42,38 @@ export async function moveTaskAction(formData: FormData) {
   }
   
   await client.api.tasks.move.$patch({ json: { id, columnId, position } })
+  return { success: true }
+}
+
+export async function createSprintAction(formData: FormData) {
+  const submission = parseWithZod(formData, { schema: insertSprintSchema })
+  if (submission.status !== 'success') {
+    return submission.reply()
+  }
+  await client.api.sprints.$post({ json: submission.value })
+  revalidatePath('/')
+  return submission.reply({ resetForm: true })
+}
+
+export async function updateSprintAction(formData: FormData) {
+  const id = formData.get('id') as string
+  const submission = parseWithZod(formData, { schema: updateSprintSchema })
+  if (submission.status !== 'success') {
+    return submission.reply()
+  }
+  if (!id) {
+    return submission.reply({ formErrors: ['ID がありません'] })
+  }
+  await client.api.sprints[':id'].$patch({ param: { id }, json: submission.value })
+  revalidatePath('/')
+  revalidatePath(`/sprints/${id}`)
+  return submission.reply({ resetForm: true })
+}
+
+export async function deleteSprintAction(formData: FormData) {
+  const id = formData.get('id') as string
+  if (!id) return { success: false, error: 'Missing id' }
+  await client.api.sprints[':id'].$delete({ param: { id } })
+  revalidatePath('/')
   return { success: true }
 }
