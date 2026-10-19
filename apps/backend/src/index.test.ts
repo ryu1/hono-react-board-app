@@ -259,9 +259,71 @@ describe('GET /api/sprints', () => {
   })
 })
 
+describe('PATCH /api/sprints/:id', () => {
+  it('updates name and period', async () => {
+    await cleanupSprints(['sp-patch-1'])
+    await createSprint({ id: 'sp-patch-1', name: 'Before', startDate: '2026-10-01', endDate: '2026-10-14' })
+    const res = await app.request('/api/sprints/sp-patch-1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'After', startDate: '2026-11-01', endDate: '2026-11-14' }),
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.data.name).toBe('After')
+    expect(data.data.startDate).toBe('2026-11-01')
+  })
+
+  it('returns 404 for a nonexistent sprint', async () => {
+    const res = await app.request('/api/sprints/does-not-exist-patch', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'X', startDate: '2026-10-01', endDate: '2026-10-14' }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('rejects inverted dates with 400', async () => {
+    await cleanupSprints(['sp-patch-2'])
+    await createSprint({ id: 'sp-patch-2', name: 'Tmp', startDate: '2026-10-01', endDate: '2026-10-14' })
+    const res = await app.request('/api/sprints/sp-patch-2', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'X', startDate: '2026-10-14', endDate: '2026-10-01' }),
+    })
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('DELETE /api/sprints/:id', () => {
+  it('deletes sprint with cascading columns and tasks', async () => {
+    await cleanupSprints(['sp-del-1'])
+    await createSprint({ id: 'sp-del-1', name: 'Doomed', startDate: '2026-10-01', endDate: '2026-10-14' })
+    await db.task.create({
+      data: { id: 'sp-del-task-1', columnId: 'col-sp-del-1-todo', title: 'Gone', position: 0 },
+    })
+
+    const res = await app.request('/api/sprints/sp-del-1', { method: 'DELETE' })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data).toEqual({ success: true, id: 'sp-del-1' })
+
+    expect(await db.sprint.findUnique({ where: { id: 'sp-del-1' } })).toBeNull()
+    expect(await db.task.findUnique({ where: { id: 'sp-del-task-1' } })).toBeNull()
+    const orphans = await db.column.findMany({ where: { sprintId: 'sp-del-1' } })
+    expect(orphans).toHaveLength(0)
+  })
+
+  it('returns 404 for a nonexistent sprint', async () => {
+    const res = await app.request('/api/sprints/does-not-exist-del', { method: 'DELETE' })
+    expect(res.status).toBe(404)
+  })
+})
+
 afterAll(async () => {
   await cleanupSprints([
     'sp-create-1', 'sp-create-2', 'sp-create-3',
     'sp-list-a', 'sp-list-b', 'sp-list-prog', 'sp-list-empty',
+    'sp-patch-1', 'sp-patch-2', 'sp-del-1',
   ])
 })

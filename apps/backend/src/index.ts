@@ -3,7 +3,7 @@ import { cors } from 'hono/cors'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { db } from './db'
-import { insertTaskSchema, insertSprintSchema } from './db/schema'
+import { insertTaskSchema, insertSprintSchema, updateSprintSchema } from './db/schema'
 
 const app = new Hono()
 
@@ -67,6 +67,37 @@ const routes = app
       return { ...rest, taskCount, doneCount, progress }
     })
     return c.json(result)
+  })
+  .patch('/api/sprints/:id', zValidator('json', updateSprintSchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ success: false, error: result.error.flatten() }, 400)
+    }
+  }), async (c) => {
+    const id = c.req.param('id')
+    const data = c.req.valid('json')
+    const result = await db.sprint.updateMany({ where: { id }, data })
+    if (result.count === 0) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
+    const updated = await db.sprint.findUniqueOrThrow({ where: { id } })
+    return c.json({ success: true, data: updated })
+  })
+  .delete('/api/sprints/:id', async (c) => {
+    const id = c.req.param('id')
+    const sprint = await db.sprint.findUnique({
+      where: { id },
+      include: { columns: true },
+    })
+    if (!sprint) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
+    const columnIds = sprint.columns.map((col) => col.id)
+    await db.$transaction([
+      db.task.deleteMany({ where: { columnId: { in: columnIds } } }),
+      db.column.deleteMany({ where: { sprintId: id } }),
+      db.sprint.delete({ where: { id } }),
+    ])
+    return c.json({ success: true, id })
   })
   .get('/api/board', async (c) => {
     const allColumns = await db.column.findMany({ orderBy: { position: 'asc' } })
