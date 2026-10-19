@@ -25,12 +25,12 @@ const dateRangeRule = (data: { startDate: string; endDate: string }) =>
   data.startDate <= data.endDate
 
 export const insertSprintSchema = sprintFields.refine(dateRangeRule, {
-  message: '開始日は終了日以降にしてください',
+  message: '開始日は終了日以前にしてください',
   path: ['endDate'],
 })
 
 export const updateSprintSchema = sprintFields.omit({ id: true }).refine(dateRangeRule, {
-  message: '開始日は終了日以降にしてください',
+  message: '開始日は終了日以前にしてください',
   path: ['endDate'],
 })
 
