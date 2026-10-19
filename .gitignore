@@ -7,3 +7,4 @@ build
 .react-router
 apps/backend/local.db
 apps/backend/generated
+.history
