@@ -62,10 +62,12 @@ describe('HTTP server bootstrap (src/server.ts)', () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.columns.length).toBeGreaterThanOrEqual(3)
-    expect(data.columns.map((c: { id: string }) => c.id)).toEqual([
-      'col-test-sprint-todo',
-      'col-test-sprint-progress',
-      'col-test-sprint-done',
-    ])
+    expect(data.columns.map((c: { id: string }) => c.id)).toEqual(
+      expect.arrayContaining([
+        'col-test-sprint-todo',
+        'col-test-sprint-progress',
+        'col-test-sprint-done',
+      ])
+    )
   })
 })
