@@ -3,7 +3,7 @@ import { cors } from 'hono/cors'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { db } from './db'
-import { insertTaskSchema } from './db/schema'
+import { insertTaskSchema, insertSprintSchema } from './db/schema'
 
 const app = new Hono()
 
@@ -21,7 +21,53 @@ const updateTaskSchema = z.object({
   description: z.string().nullable(),
 })
 
+const sprintColumns = [
+  { suffix: 'todo', title: 'Todo 📝', position: 0 },
+  { suffix: 'progress', title: 'In Progress 🚀', position: 1 },
+  { suffix: 'done', title: 'Done ✅', position: 2 },
+] as const
+
 const routes = app
+  .post('/api/sprints', zValidator('json', insertSprintSchema, (result, c) => {
+    if (!result.success) {
+      return c.json({ success: false, error: result.error.flatten() }, 400)
+    }
+  }), async (c) => {
+    const { id, name, startDate, endDate } = c.req.valid('json')
+    const sprint = await db.$transaction(async (tx) => {
+      const created = await tx.sprint.create({ data: { id, name, startDate, endDate } })
+      for (const col of sprintColumns) {
+        await tx.column.create({
+          data: {
+            id: `col-${id}-${col.suffix}`,
+            title: col.title,
+            position: col.position,
+            sprintId: created.id,
+          },
+        })
+      }
+      return created
+    })
+    return c.json({ success: true, data: sprint })
+  })
+  .get('/api/sprints', async (c) => {
+    const sprints = await db.sprint.findMany({
+      orderBy: { startDate: 'desc' },
+      include: { columns: { include: { tasks: true } } },
+    })
+    const result = sprints.map((sprint) => {
+      const tasks = sprint.columns.flatMap((col) => col.tasks)
+      const doneColumn = sprint.columns.find((col) => col.position === 2)
+      const doneCount = doneColumn
+        ? tasks.filter((t) => t.columnId === doneColumn.id).length
+        : 0
+      const taskCount = tasks.length
+      const progress = taskCount === 0 ? 0 : Math.round((doneCount / taskCount) * 1000) / 10
+      const { columns: _columns, ...rest } = sprint
+      return { ...rest, taskCount, doneCount, progress }
+    })
+    return c.json(result)
+  })
   .get('/api/board', async (c) => {
     const allColumns = await db.column.findMany({ orderBy: { position: 'asc' } })
     const allTasks = await db.task.findMany({ orderBy: { position: 'asc' } })

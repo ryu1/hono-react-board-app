@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import app from './index'
 import { db } from './db'
 import { ensureTestSprint } from './db/test-fixtures'
@@ -163,4 +163,105 @@ describe('nonexistent resources return 404', () => {
     expect(data.success).toBe(false)
     expect(data.error).toBe('Not Found')
   })
+})
+
+async function cleanupSprints(ids: string[]) {
+  const sprints = await db.sprint.findMany({
+    where: { id: { in: ids } },
+    include: { columns: true },
+  })
+  const columnIds = sprints.flatMap((s) => s.columns.map((c) => c.id))
+  await db.task.deleteMany({ where: { columnId: { in: columnIds } } })
+  await db.column.deleteMany({ where: { id: { in: columnIds } } })
+  await db.sprint.deleteMany({ where: { id: { in: ids } } })
+}
+
+async function createSprint(body: unknown) {
+  return app.request('/api/sprints', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+describe('POST /api/sprints', () => {
+  it('creates a sprint with 3 columns', async () => {
+    await cleanupSprints(['sp-create-1'])
+    const res = await createSprint({
+      id: 'sp-create-1', name: 'Sprint A', startDate: '2026-10-01', endDate: '2026-10-14',
+    })
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.success).toBe(true)
+    expect(data.data.name).toBe('Sprint A')
+
+    const columns = await db.column.findMany({
+      where: { sprintId: 'sp-create-1' },
+      orderBy: { position: 'asc' },
+    })
+    expect(columns.map((c) => c.title)).toEqual(['Todo 📝', 'In Progress 🚀', 'Done ✅'])
+    expect(columns.map((c) => c.id)).toEqual([
+      'col-sp-create-1-todo', 'col-sp-create-1-progress', 'col-sp-create-1-done',
+    ])
+  })
+
+  it('rejects inverted dates with 400', async () => {
+    const res = await createSprint({
+      id: 'sp-create-2', name: 'Bad', startDate: '2026-10-14', endDate: '2026-10-01',
+    })
+    expect(res.status).toBe(400)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+  })
+
+  it('rejects empty name with 400', async () => {
+    const res = await createSprint({
+      id: 'sp-create-3', name: '', startDate: '2026-10-01', endDate: '2026-10-14',
+    })
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('GET /api/sprints', () => {
+  it('returns sprints ordered by startDate desc with progress aggregates', async () => {
+    await cleanupSprints(['sp-list-a', 'sp-list-b', 'sp-list-prog'])
+    await createSprint({ id: 'sp-list-a', name: 'A', startDate: '2026-01-01', endDate: '2026-01-14' })
+    await createSprint({ id: 'sp-list-b', name: 'B', startDate: '2026-06-01', endDate: '2026-06-14' })
+    await createSprint({ id: 'sp-list-prog', name: 'Prog', startDate: '2026-03-01', endDate: '2026-03-14' })
+    await db.task.create({
+      data: { id: 'sp-task-1', columnId: 'col-sp-list-prog-todo', title: 'Todo task', position: 0 },
+    })
+    await db.task.create({
+      data: { id: 'sp-task-2', columnId: 'col-sp-list-prog-done', title: 'Done task', position: 0 },
+    })
+
+    const res = await app.request('/api/sprints')
+    expect(res.status).toBe(200)
+    const data: Array<{ id: string; taskCount: number; doneCount: number; progress: number }> =
+      await res.json()
+
+    const idxA = data.findIndex((s) => s.id === 'sp-list-a')
+    const idxB = data.findIndex((s) => s.id === 'sp-list-b')
+    expect(idxB).toBeLessThan(idxA)
+
+    const prog = data.find((s) => s.id === 'sp-list-prog')
+    expect(prog).toMatchObject({ taskCount: 2, doneCount: 1, progress: 50 })
+  })
+
+  it('returns progress 0 for a sprint with no tasks', async () => {
+    await cleanupSprints(['sp-list-empty'])
+    await createSprint({ id: 'sp-list-empty', name: 'Empty', startDate: '2026-02-01', endDate: '2026-02-14' })
+    const res = await app.request('/api/sprints')
+    const data: Array<{ id: string; taskCount: number; doneCount: number; progress: number }> =
+      await res.json()
+    const empty = data.find((s) => s.id === 'sp-list-empty')
+    expect(empty).toMatchObject({ taskCount: 0, doneCount: 0, progress: 0 })
+  })
+})
+
+afterAll(async () => {
+  await cleanupSprints([
+    'sp-create-1', 'sp-create-2', 'sp-create-3',
+    'sp-list-a', 'sp-list-b', 'sp-list-prog', 'sp-list-empty',
+  ])
 })
