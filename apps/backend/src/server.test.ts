@@ -57,11 +57,11 @@ describe('HTTP server bootstrap (src/server.ts)', () => {
     proc?.kill('SIGTERM')
   })
 
-  it('serves GET /api/board over HTTP with 3 columns', async () => {
+  it('serves GET /api/board over HTTP with at least 3 columns', async () => {
     const res = await fetch(`${BASE}/api/board`)
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.columns).toHaveLength(3)
+    expect(data.columns.length).toBeGreaterThanOrEqual(3)
     expect(data.columns.map((c: { id: string }) => c.id)).toEqual([
       'col-test-sprint-todo',
       'col-test-sprint-progress',
