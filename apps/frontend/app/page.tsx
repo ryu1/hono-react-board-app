@@ -1,12 +1,12 @@
 import { client } from './client'
-import Board from '@/components/Board'
+import SprintList from '@/components/SprintList'
 
-export default async function BoardPage() {
-  const res = await client.api.board.$get()
+export default async function SprintListPage() {
+  const res = await client.api.sprints.$get()
   if (!res.ok) {
     throw new Error('データ取得失敗')
   }
-  const { columns, tasks } = await res.json()
-  
-  return <Board initialColumns={columns} initialTasks={tasks} />
+  const sprints = await res.json()
+
+  return <SprintList initialSprints={sprints} />
 }
