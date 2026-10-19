@@ -2,6 +2,18 @@
 
 ## 1. システム全体構成
 
+### 1.1 アーキテクチャパターン
+
+本システムは **レイヤードアーキテクチャ**（フロントエンド層 / API 層 / データアクセス層）を採用し、Hono RPC による End-to-End 型安全性を担保する。
+
+| レイヤー | 担当 | 技術 |
+|---------|------|------|
+| プレゼンテーション層 | RSC + Client Components + Server Actions | Next.js 15, React 19 |
+| アプリケーション層 | REST API ルート + バリデーション | Hono, Zod (`zValidator`) |
+| データアクセス層 | ORM 経由の永続化 | Prisma ORM, better-sqlite3 |
+
+### 1.2 システム構成図
+
 ```mermaid
 graph TD
     subgraph "Frontend (Next.js 15 App Router)"
@@ -23,7 +35,7 @@ graph TD
     APP_TYPE -.->|Type Inference| RPC
 ```
 
-### コンポーネント関係
+### 1.3 コンポーネント関係
 
 | コンポーネント | 役割 | 技術 |
 |--------------|------|------|
@@ -34,13 +46,64 @@ graph TD
 
 ---
 
-## 2. ディレクトリ構造
+## 2. 堅牢性分析（Boundary–Control–Entity）
+
+堅牢性分析は必要に応じて適用する。本節では、責務分担の整理が必要なタスク移動（UC-003）を中心に、ユースケースを「画面/外部境界（Boundary）」「制御（Control）」「データ（Entity）」へ分解し、コード構造へのマッピングを示す。ユースケース仕様の正本は [`docs/usecases.md`](usecases.md)、エンティティ定義の正本は [`docs/domain_model.md`](domain_model.md) を参照。
+
+### 2.1 BCE マッピング
+
+| UC ID | Boundary（画面/境界） | Control（制御） | Entity（データ） |
+|-------|----------------------|----------------|-----------------|
+| UC-001 ボード表示 | `page.tsx` (RSC), `Board.tsx`, `Column.tsx`, `TaskCard.tsx` | `client.api.board.$get()` (RPC) | `Column`, `Task` |
+| UC-002 タスク作成 | `CreateForm.tsx` | `createTaskAction` → `POST /api/tasks` | `Task` (`insertTaskSchema`) |
+| UC-003 タスク移動 | `TaskCard.tsx` (`onDragStart`), `Column.tsx` (`onDrop`) | `moveTaskAction` → `PATCH /api/tasks/move` | `Task` (`moveTaskSchema`) |
+| UC-004 タスク編集 | `TaskCard.tsx` (インライン編集モード) | `updateTaskAction` → `PUT /api/tasks/update` | `Task` (`updateTaskSchema`) |
+| UC-005 タスク削除 | `TaskCard.tsx` (× ボタン) | `deleteTaskAction` → `DELETE /api/tasks/:id` | `Task` |
+
+### 2.2 シーケンス図：タスク移動（UC-003）
+
+堅牢性分析の代表例。タスク移動（Drag & Drop → Server Action → API → DB）の動的フローを示す。
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant TaskCard as TaskCard (Boundary)
+    participant Column as Column (Boundary)
+    participant MoveAction as moveTaskAction (Control)
+    participant RPC as hc Client (Control)
+    participant API as Hono Backend (Control)
+    participant DB as Task/Column (Entity)
+
+    User->>TaskCard: タスクをドラッグ開始
+    TaskCard->>TaskCard: onDragStart: dataTransfer.setData(taskId)
+    User->>Column: 別カラムでドロップ
+    Column->>Column: onDrop: e.preventDefault(), taskId 取得
+    Column->>MoveAction: moveTaskAction(formData: {id, columnId, position: 999})
+    MoveAction->>RPC: client.api.tasks.move.$patch({json})
+    RPC->>API: PATCH /api/tasks/move
+    API->>API: zValidator(moveTaskSchema)
+    API->>DB: UPDATE tasks SET column_id=?, position=? WHERE id=?
+    DB-->>API: count
+    alt count > 0
+        API->>DB: SELECT * FROM tasks WHERE id=?
+        DB-->>API: updated task
+        API-->>RPC: { success: true, data }
+    else
+        API-->>RPC: 404 { success: false, error: 'Not Found' }
+    end
+    MoveAction-->>Column: { success: true }
+    Note over Column,TaskCard: ※現状: ローカル state 更新なし (楽観的 UI 未実装)
+```
+
+---
+
+## 3. ディレクトリ構造
 
 ディレクトリ構造とファイル配置ルールは [`docs/conventions.md#1-フォルダファイル構成`](conventions.md#1-フォルダファイル構成) を参照してください。
 
 ---
 
-## 3. データモデル
+## 4. データモデル
 
 ```mermaid
 erDiagram
@@ -83,9 +146,9 @@ erDiagram
 
 ---
 
-## 4. コンポーネント設計
+## 5. コンポーネント設計
 
-### 4.1 共有パッケージ (`@my-app/shared`)
+### 5.1 共有パッケージ (`@my-app/shared`)
 
 **責務**: バックエンドの Prisma スキーマから `prisma-zod-generator` で自動生成される Zod スキーマをフロントエンドへ中継・エクスポート
 
@@ -102,9 +165,9 @@ export type { CreateTaskInput } from '../../../apps/backend/src/db/schema'
 
 ---
 
-### 4.2 バックエンド (`apps/backend`)
+### 5.2 バックエンド (`apps/backend`)
 
-#### 4.2.1 データベース層 (`src/db/`)
+#### 5.2.1 データベース層 (`src/db/`)
 
 | ファイル | 責務 |
 |----------|------|
@@ -112,7 +175,7 @@ export type { CreateTaskInput } from '../../../apps/backend/src/db/schema'
 | `index.ts` | `@prisma/adapter-better-sqlite3` で better-sqlite3 接続 + `PrismaClient` export |
 | `seed.ts` | べき等シード: 3 カラム (Todo/In Progress/Done) を初回のみ投入 (`upsert`) |
 
-#### 4.2.2 API ルート (`src/index.ts`)
+#### 5.2.2 API ルート (`src/index.ts`)
 
 ```mermaid
 sequenceDiagram
@@ -167,7 +230,7 @@ sequenceDiagram
 
 **エンドポイント一覧** → 詳細は [`docs/api.md`](api.md) を参照
 
-#### 4.2.3 サーバー起動 (`src/server.ts`)
+#### 5.2.3 サーバー起動 (`src/server.ts`)
 
 ```typescript
 import { serve } from '@hono/node-server'
@@ -177,7 +240,7 @@ const port = Number(process.env.PORT ?? 3000)
 serve({ fetch: app.fetch, port })
 ```
 
-#### 4.2.4 型定義・エクスポート
+#### 5.2.4 型定義・エクスポート
 
 ```typescript
 // apps/backend/src/index.ts
@@ -187,9 +250,9 @@ export default app
 
 ---
 
-### 4.3 フロントエンド (`apps/frontend`)
+### 5.3 フロントエンド (`apps/frontend`)
 
-#### 4.3.1 RPC クライアント (`app/client.ts`)
+#### 5.3.1 RPC クライアント (`app/client.ts`)
 
 ```typescript
 import { hc } from 'hono/client'
@@ -201,7 +264,7 @@ export const client = hc<AppType>('http://localhost:3001/')
 - `AppType` から全エンドポイントの型を推論
 - ベース URL は開発時 `http://localhost:3001/`
 
-#### 4.3.2 Server Actions (`app/actions.ts`)
+#### 5.3.2 Server Actions (`app/actions.ts`)
 
 ```typescript
 'use server'
@@ -221,7 +284,7 @@ export async function moveTaskAction(formData: FormData) { ... }
 - RPC クライアント経由でバックエンド API 呼び出し
 - `submission.reply()` で Conform 対応レスポンス返却
 
-#### 4.3.3 ページコンポーネント (`app/page.tsx` - RSC)
+#### 5.3.3 ページコンポーネント (`app/page.tsx` - RSC)
 
 ```typescript
 import { client } from './client'
@@ -240,7 +303,7 @@ export default async function BoardPage() {
 - `client.api.board.$get()` で初期データ取得
 - Client Component (`Board`) に初期データを props で渡す
 
-#### 4.3.4 ボードコンポーネント (`components/Board.tsx` - Client Component)
+#### 5.3.4 ボードコンポーネント (`components/Board.tsx` - Client Component)
 
 ```typescript
 'use client'
@@ -268,7 +331,7 @@ export default function Board({ initialColumns, initialTasks }: BoardProps) {
 - `useState` でローカル タスク状態管理
 - Server Actions (`moveTaskAction` 等) でミューテーション実行
 
-#### 4.3.5 カラム・タスクカード・作成フォーム
+#### 5.3.5 カラム・タスクカード・作成フォーム
 
 | コンポーネント | 責務 | 主なフック/API |
 |--------------|------|----------------|
@@ -276,7 +339,7 @@ export default function Board({ initialColumns, initialTasks }: BoardProps) {
 | `TaskCard.tsx` | タスク表示、ドラッグソース、インライン編集、削除 | `useState` (編集モード), `useActionState` (更新/削除), `onDragStart` |
 | `CreateForm.tsx` | タスク作成フォーム、Conform + Zod バリデーション | `useActionState` (createTaskAction), `useForm`, `parseWithZod` |
 
-#### 4.3.6 レイアウト (`app/layout.tsx`)
+#### 5.3.6 レイアウト (`app/layout.tsx`)
 
 ```typescript
 export const metadata: Metadata = {
@@ -299,7 +362,7 @@ export default function RootLayout({ children }) {
 
 ---
 
-## 5. データフロー
+## 6. データフロー
 
 ```mermaid
 flowchart LR
@@ -335,43 +398,22 @@ flowchart LR
 
 ---
 
-## 6. エラーハンドリング方針
+## 7. エラーハンドリング方針
 
-### 6.1 バックエンド
+### 7.1 バックエンド
 | 種別 | 対応 | HTTP ステータス |
 |------|------|----------------|
 | バリデーション失敗 | `zValidator` 自動処理、エラー詳細返却 | 400 |
 | Prisma エラー | try-catch で捕捉、ログ出力後汎用エラー | 500 |
 | リソース不存在 | `updateMany`/`deleteMany` の count で判定 | 404 |
 
-### 6.2 フロントエンド
+### 7.2 フロントエンド
 | 種別 | 対応 |
 |------|------|
 | RSC データ取得失敗 | `throw new Error` → Next.js Error Boundary (`error.tsx` 未実装) |
 | Server Action 失敗 | Conform `submission.reply()` でフォームにエラー表示 (`CreateForm`) |
 | `useActionState` 失敗 | 戻り値 `{ success: false, error }` でハンドリング (`TaskCard`) |
 | ネットワークエラー | ブラウザ標準エラー、トースト通知未実装 |
-
----
-
-## 7. ユースケース図
-
-```mermaid
-flowchart LR
-    User((User))
-    
-    User --> UC1["ボード表示 (RSC)"]
-    User --> UC2["タスク作成 (Server Action)"]
-    User --> UC3["タスク移動 (Server Action + DnD)"]
-    User --> UC4["タスク編集 (Server Action)"]
-    User --> UC5["タスク削除 (Server Action)"]
-    
-    UC1 --> Backend["GET /api/board"]
-    UC2 --> Backend["POST /api/tasks"]
-    UC3 --> Backend["PATCH /api/tasks/move"]
-    UC4 --> Backend["PUT /api/tasks/update"]
-    UC5 --> Backend["DELETE /api/tasks/:id"]
-```
 
 ---
 
@@ -453,39 +495,4 @@ classDiagram
     TaskAPI --> MoveAPI
     BoardResponse --> Column
     BoardResponse --> Task
-```
-
----
-
-## 9. シーケンス図：タスク移動（Drag & Drop → Server Action）
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant TaskCard as TaskCard (Client)
-    participant Column as Column (Client)
-    participant MoveAction as moveTaskAction (Server)
-    participant RPC as hc Client
-    participant API as Hono Backend
-    participant DB as SQLite
-
-    User->>TaskCard: タスクをドラッグ開始
-    TaskCard->>TaskCard: onDragStart: dataTransfer.setData(taskId)
-    User->>Column: 別カラムでドロップ
-    Column->>Column: onDrop: e.preventDefault(), taskId 取得
-    Column->>MoveAction: moveTaskAction(formData: {id, columnId, position: 999})
-    MoveAction->>RPC: client.api.tasks.move.$patch({json})
-    RPC->>API: PATCH /api/tasks/move
-    API->>API: zValidator(moveTaskSchema)
-    API->>DB: UPDATE tasks SET column_id=?, position=? WHERE id=?
-    DB-->>API: count
-    alt count > 0
-        API->>DB: SELECT * FROM tasks WHERE id=?
-        DB-->>API: updated task
-        API-->>RPC: { success: true, data }
-    else
-        API-->>RPC: 404 { success: false, error: 'Not Found' }
-    end
-    MoveAction-->>Column: { success: true }
-    Note over Column,TaskCard: ※現状: ローカル state 更新なし (楽観的 UI 未実装)
 ```

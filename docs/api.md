@@ -1,7 +1,8 @@
 # REST API 仕様書
 
 > **このファイルは REST API 仕様の唯一の正本です。**  
-> 他のドキュメント（`architecture.md`、`conventions.md`、`tech.md` 等）では API 詳細を記載せず、本ファイルへの参照リンクのみ記載します。
+> 他のドキュメント（`architecture.md`、`conventions.md`、`tech.md` 等）では API 詳細を記載せず、本ファイルへの参照リンクのみ記載します。  
+> 各エンドポイントが処理するユースケースの詳細（事前条件・フロー等）は [`docs/usecases.md`](usecases.md) を参照してください。
 
 ## 1. 概要
 
@@ -75,13 +76,13 @@ interface ServerErrorResponse {
 
 ## 3. エンドポイント一覧
 
-| メソッド | パス | 説明 | バリデーション |
-|----------|------|------|----------------|
-| `GET` | `/api/board` | 全カラム・タスク取得 | なし |
-| `POST` | `/api/tasks` | タスク作成 | `insertTaskSchema` |
-| `PATCH` | `/api/tasks/move` | タスク移動 (カラム・位置) | `moveTaskSchema` |
-| `PUT` | `/api/tasks/update` | タスク詳細更新 (タイトル・説明) | `updateTaskSchema` |
-| `DELETE` | `/api/tasks/:id` | タスク削除 | なし |
+| メソッド | パス | 関連要求 ID | 対応 UC | 説明 | バリデーション |
+|----------|------|------------|---------|------|----------------|
+| `GET` | `/api/board` | F-003, FR-001 | UC-001 | 全カラム・タスク取得 | なし |
+| `POST` | `/api/tasks` | F-002, F-007, FR-001 | UC-002 | タスク作成 | `insertTaskSchema` |
+| `PATCH` | `/api/tasks/move` | F-006, FR-001 | UC-003 | タスク移動 (カラム・位置) | `moveTaskSchema` |
+| `PUT` | `/api/tasks/update` | F-004, F-007, FR-001 | UC-004 | タスク詳細更新 (タイトル・説明) | `updateTaskSchema` |
+| `DELETE` | `/api/tasks/:id` | F-005, FR-001 | UC-005 | タスク削除 | なし |
 
 ---
 

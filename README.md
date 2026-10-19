@@ -66,8 +66,10 @@
 
 | ドキュメント | 内容 |
 |-------------|------|
-| [`docs/product.md`](docs/product.md) | プロダクトビジョン・要件・ユーザーストーリー・成功の定義 |
-| [`docs/architecture.md`](docs/architecture.md) | システム構成・データモデル・コンポーネント設計・データフロー |
+| [`docs/product.md`](docs/product.md) | プロダクトビジョン・アクター定義・要件一覧・成功の定義 |
+| [`docs/usecases.md`](docs/usecases.md) | ユースケースの振る舞いの正本 (UC-001〜UC-005・事前/事後条件・基本/代替/例外フロー) |
+| [`docs/domain_model.md`](docs/domain_model.md) | ドメインオブジェクト・ビジネスルール・タスクのライフサイクル・状態遷移 |
+| [`docs/architecture.md`](docs/architecture.md) | 堅牢性分析・システム構成・データモデル・コンポーネント設計・データフロー |
 | [`docs/design.md`](docs/design.md) | GUI デザイン・カラーパレット・タイポグラフィ・コンポーネント仕様・アクセシビリティ |
 | [`docs/api.md`](docs/api.md) | **REST API 仕様の唯一の正本** (エンドポイント・リクエスト/レスポンス・エラー・バリデーション) |
 | [`docs/tech.md`](docs/tech.md) | 技術選定理由・制約・パフォーマンス要件・ADR |

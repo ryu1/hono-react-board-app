@@ -287,11 +287,13 @@ Server (page.tsx)
 ```
 Client (Component)
   └─ useActionState(action, initialState)
-       ├─ createTaskAction(formData)  → POST /api/tasks
-       ├─ deleteTaskAction(formData)  → DELETE /api/tasks/:id
-       ├─ updateTaskAction(formData)  → PUT /api/tasks/update
-       └─ moveTaskAction(formData)    → PATCH /api/tasks/move
+       ├─ createTaskAction(formData)
+       ├─ deleteTaskAction(formData)
+       ├─ updateTaskAction(formData)
+       └─ moveTaskAction(formData)
 ```
+
+各 Server Action が呼び出す API の詳細は [`docs/api.md`](api.md)（唯一の正本）を参照。対応ユースケースは [`docs/usecases.md`](usecases.md) を参照。
 
 ### 8.3 ローカル状態管理
 | 状態 | 管理方法 | 永続化 |

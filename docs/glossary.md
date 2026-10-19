@@ -15,6 +15,11 @@
 | **Client Component** | Client Component | `'use client'` でクライアント側インタラクティブ化 | `components/*.tsx` |
 | **インライン編集** | Inline Editing | タスクカードクリックでその場編集モード遷移 | `useState` (編集モード), `useActionState(updateTaskAction)` |
 | **シードデータ** | Seed Data | 初回起動時に自動投入される初期カラム 3 つ | `seed.ts`, `col-todo/col-progress/col-done` |
+| **ユースケース** | Use Case | アクターとシステムの対話フロー単位の仕様。`UC-xxx` 形式で ID 付与 | `docs/usecases.md`（振る舞いの正本） |
+| **アクター** | Actor | システムの外部境界に関わる主体（ユーザー、間接アクター） | `ACT-xxx` (`docs/product.md`) |
+| **事前条件** | Pre-conditions | ユースケース開始時点で満たすべき条件 | `docs/usecases.md` 各 UC |
+| **事後条件** | Post-conditions | ユースケース成功/失敗後の状態 | `docs/usecases.md` 各 UC |
+| **堅牢性分析** | Robustness Analysis (BCE) | ユースケースを Boundary/Control/Entity に分解する分析 | `docs/architecture.md` |
 
 ---
 
@@ -222,6 +227,7 @@ packages/shared/src/{feature}.ts    (共通)
 | 略語 | 正式名称 | 日本語 |
 |------|----------|--------|
 | **API** | Application Programming Interface | API |
+| **BCE** | Boundary-Control-Entity | 堅牢性分析の構成要素（境界-制御-データ） |
 | **CI/CD** | Continuous Integration / Continuous Deployment | CI/CD |
 | **CORS** | Cross-Origin Resource Sharing | クロスオリジンリソース共有 |
 | **CRUD** | Create, Read, Update, Delete | CRUD |
@@ -251,6 +257,7 @@ packages/shared/src/{feature}.ts    (共通)
 | **TDD** | Test-Driven Development | テスト駆動開発 |
 | **TTFB** | Time To First Byte | 初回バイト到達時間 |
 | **UI** | User Interface | ユーザーインターフェース |
+| **UC** | Use Case | ユースケース |
 | **UX** | User Experience | ユーザー体験 |
 | **WAL** | Write-Ahead Logging | 書き込み前ログ |
 | **WCAG** | Web Content Accessibility Guidelines | ウェブコンテンツアクセシビリティガイドライン |
