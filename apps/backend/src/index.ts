@@ -99,6 +99,22 @@ const routes = app
     ])
     return c.json({ success: true, id })
   })
+  .get('/api/sprints/:id/board', async (c) => {
+    const id = c.req.param('id')
+    const sprint = await db.sprint.findUnique({ where: { id } })
+    if (!sprint) {
+      return c.json({ success: false, error: 'Not Found' }, 404)
+    }
+    const columns = await db.column.findMany({
+      where: { sprintId: id },
+      orderBy: { position: 'asc' },
+    })
+    const tasks = await db.task.findMany({
+      where: { columnId: { in: columns.map((col) => col.id) } },
+      orderBy: { position: 'asc' },
+    })
+    return c.json({ sprint, columns, tasks })
+  })
   .get('/api/board', async (c) => {
     const allColumns = await db.column.findMany({ orderBy: { position: 'asc' } })
     const allTasks = await db.task.findMany({ orderBy: { position: 'asc' } })

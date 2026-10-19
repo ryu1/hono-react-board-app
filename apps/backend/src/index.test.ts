@@ -320,10 +320,43 @@ describe('DELETE /api/sprints/:id', () => {
   })
 })
 
+describe('GET /api/sprints/:id/board', () => {
+  it('returns sprint, its columns, and only its tasks', async () => {
+    await cleanupSprints(['sp-board-1', 'sp-board-2'])
+    await createSprint({ id: 'sp-board-1', name: 'Board 1', startDate: '2026-10-01', endDate: '2026-10-14' })
+    await createSprint({ id: 'sp-board-2', name: 'Board 2', startDate: '2026-10-15', endDate: '2026-10-28' })
+    await db.task.create({
+      data: { id: 'sp-board-task-1', columnId: 'col-sp-board-1-todo', title: 'Mine', position: 0 },
+    })
+    await db.task.create({
+      data: { id: 'sp-board-task-2', columnId: 'col-sp-board-2-todo', title: 'Others', position: 0 },
+    })
+
+    const res = await app.request('/api/sprints/sp-board-1/board')
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.sprint.id).toBe('sp-board-1')
+    expect(data.columns).toHaveLength(3)
+    expect(data.columns.map((col: { title: string }) => col.title)).toEqual([
+      'Todo 📝', 'In Progress 🚀', 'Done ✅',
+    ])
+    expect(data.tasks.map((t: { id: string }) => t.id)).toEqual(['sp-board-task-1'])
+  })
+
+  it('returns 404 for a nonexistent sprint', async () => {
+    const res = await app.request('/api/sprints/does-not-exist-board/board')
+    expect(res.status).toBe(404)
+    const data = await res.json()
+    expect(data.success).toBe(false)
+    expect(data.error).toBe('Not Found')
+  })
+})
+
 afterAll(async () => {
   await cleanupSprints([
     'sp-create-1', 'sp-create-2', 'sp-create-3',
     'sp-list-a', 'sp-list-b', 'sp-list-prog', 'sp-list-empty',
     'sp-patch-1', 'sp-patch-2', 'sp-del-1',
+    'sp-board-1', 'sp-board-2',
   ])
 })
