@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ensureTestSprint } from './db/test-fixtures'
 
 const PORT = 3457
 const BASE = `http://localhost:${PORT}`
@@ -13,6 +14,7 @@ let proc: ChildProcess
 
 describe('HTTP server bootstrap (src/server.ts)', () => {
   beforeAll(async () => {
+    await ensureTestSprint()
     proc = spawn(tsx, ['src/server.ts'], {
       cwd: backendRoot,
       env: { ...process.env, PORT: String(PORT) },
@@ -61,9 +63,9 @@ describe('HTTP server bootstrap (src/server.ts)', () => {
     const data = await res.json()
     expect(data.columns).toHaveLength(3)
     expect(data.columns.map((c: { id: string }) => c.id)).toEqual([
-      'col-todo',
-      'col-progress',
-      'col-done',
+      'col-test-sprint-todo',
+      'col-test-sprint-progress',
+      'col-test-sprint-done',
     ])
   })
 })

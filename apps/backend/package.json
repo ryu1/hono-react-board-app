@@ -8,8 +8,7 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

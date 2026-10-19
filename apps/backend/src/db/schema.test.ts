@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { insertTaskSchema, insertColumnSchema } from './schema'
+import { insertTaskSchema, insertColumnSchema, insertSprintSchema, updateSprintSchema } from './schema'
 
 describe('insertTaskSchema', () => {
   it('rejects empty title', () => {
@@ -40,6 +40,53 @@ describe('insertColumnSchema', () => {
       id: 'c1',
       title: '',
       position: 0,
+      sprintId: 's1',
+    })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('insertSprintSchema', () => {
+  it('rejects empty name', () => {
+    const result = insertSprintSchema.safeParse({
+      id: 's1', name: '', startDate: '2026-10-01', endDate: '2026-10-14',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects malformed date', () => {
+    const result = insertSprintSchema.safeParse({
+      id: 's1', name: 'Sprint 1', startDate: '2026/10/01', endDate: '2026-10-14',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects startDate after endDate', () => {
+    const result = insertSprintSchema.safeParse({
+      id: 's1', name: 'Sprint 1', startDate: '2026-10-14', endDate: '2026-10-01',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts valid sprint', () => {
+    const result = insertSprintSchema.safeParse({
+      id: 's1', name: 'Sprint 1', startDate: '2026-10-01', endDate: '2026-10-14',
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('updateSprintSchema', () => {
+  it('accepts payload without id', () => {
+    const result = updateSprintSchema.safeParse({
+      name: 'Sprint 1', startDate: '2026-10-01', endDate: '2026-10-14',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects startDate after endDate', () => {
+    const result = updateSprintSchema.safeParse({
+      name: 'Sprint 1', startDate: '2026-10-14', endDate: '2026-10-01',
     })
     expect(result.success).toBe(false)
   })

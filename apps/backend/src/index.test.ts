@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import app from './index'
 import { db } from './db'
-import { seed } from './db/seed'
+import { ensureTestSprint } from './db/test-fixtures'
+
+let cols: { todoId: string; progressId: string; doneId: string }
 
 beforeAll(async () => {
   await db.task.deleteMany({ where: { id: 'test-task-1' } })
-  await seed()
+  cols = await ensureTestSprint()
 })
 
 async function getBoard() {
@@ -38,7 +40,7 @@ describe('POST /api/tasks', () => {
   it('rejects empty title with 400', async () => {
     const res = await createTask({
       id: 'test-invalid',
-      columnId: 'col-todo',
+      columnId: cols.todoId,
       title: '',
       position: 0,
     })
@@ -48,7 +50,7 @@ describe('POST /api/tasks', () => {
   it('creates a valid task', async () => {
     const res = await createTask({
       id: 'test-task-1',
-      columnId: 'col-todo',
+      columnId: cols.todoId,
       title: 'Test Task',
       position: 0,
     })
@@ -66,13 +68,13 @@ describe('PATCH /api/tasks/move', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 'test-task-1',
-        columnId: 'col-progress',
+        columnId: cols.progressId,
         position: 0,
       }),
     })
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.data.columnId).toBe('col-progress')
+    expect(data.data.columnId).toBe(cols.progressId)
   })
 })
 
@@ -126,7 +128,7 @@ describe('nonexistent resources return 404', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 'does-not-exist-move',
-        columnId: 'col-progress',
+        columnId: cols.progressId,
         position: 0,
       }),
     })

@@ -4,13 +4,10 @@ import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { db } from './db'
 import { insertTaskSchema } from './db/schema'
-import { seed } from './db/seed'
 
 const app = new Hono()
 
 app.use('/api/*', cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }))
-
-seed().catch(console.error)
 
 const moveTaskSchema = z.object({
   id: z.string(),
