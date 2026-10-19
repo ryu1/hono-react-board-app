@@ -67,7 +67,7 @@
 | 認証・暗号化・権限 | `docs/security.md` |
 | 環境構築・デプロイ・障害調査 | `docs/conventions.md`、`docs/operations.md` |
 | コードレビュー | `docs/review.md` |
-| 用語・命名の確認 | `docs/glossary.md` |
+| 用語の確認 | `docs/glossary.md` |
 
 複数に該当する場合は、必要なドキュメントをすべて確認します。ドキュメントが存在しない場合は、存在するかのように扱わず、必要性と影響範囲に応じて対応します。
 
@@ -99,7 +99,7 @@
 - 画面仕様：`docs/design.md`
 - REST API契約：`docs/api.md`
 - 技術選定・技術的制約：`docs/tech.md`
-- 開発規約・手順：`docs/conventions.md`
+- 開発規約・命名規則・手順：`docs/conventions.md`
 - セキュリティ設計：`docs/security.md`
 - 運用手順：`docs/operations.md`
 - レビュー方針：`docs/review.md`
@@ -116,7 +116,7 @@
 - 要求・外部仕様に影響する場合は、対応する正本を更新する。
 - ユーザーストーリーを管理している場合は、ユーザー価値や要求の変更に応じて更新する。
 - 内部実装の変更で要求や振る舞いに影響しない場合、ユーザーストーリーやユースケースを形式的に更新する必要はない。
-- 新しいドメイン用語や命名を導入した場合は、`docs/glossary.md` を更新する。
+- 新しいドメイン用語を導入した場合は `docs/glossary.md`、命名規則を変更した場合は `docs/conventions.md` を更新する。
 - API契約を変更した場合は、`docs/api.md` を更新する。
 - 関連する図表・参照リンクも同期する。
 - Gitでコミットする運用の場合は、コードと関連ドキュメントを同じコミットに含める。

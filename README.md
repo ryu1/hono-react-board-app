@@ -77,7 +77,7 @@
 | [`docs/security.md`](docs/security.md) | 脅威モデル・バリデーション・インジェクション対策・通信セキュリティ・既知リスク |
 | [`docs/operations.md`](docs/operations.md) | 環境変数・日常運用・ログ・障害切り分け・デプロイチェックリスト |
 | [`docs/review.md`](docs/review.md) | レビュー観点・PR プロセス・承認ルール・コメントガイドライン・セルフレビュー |
-| [`docs/glossary.md`](docs/glossary.md) | ユビキタス言語・英日対応表・命名規則パターン |
+| [`docs/glossary.md`](docs/glossary.md) | ユビキタス言語・英日対応表・技術用語・略語 |
 | [`docs/documentation-guideline.md`](docs/documentation-guideline.md) | ドキュメント作成・更新規約・完了チェックリスト |
 
 

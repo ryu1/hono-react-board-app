@@ -153,7 +153,7 @@ model Task {
 | `/` | `apps/frontend/app/page.tsx`（改訂） | RSC | `GET /api/sprints` → 一覧＋作成フォーム |
 | `/sprints/[id]` | `apps/frontend/app/sprints/[id]/page.tsx`（新規） | RSC | `GET /api/sprints/:id/board` → 既存 `<Board>` |
 
-- 命名規約は `docs/glossary.md` の `{Route}Page` パターンに従う
+- 命名規約は `docs/conventions.md` の `{Route}Page` パターンに従う
 - 詳細ページで 404 → `notFound()` → ルート直下の `not-found.tsx`（新規）で表示
 - 既存 `<Board>` はほぼ無変更で再利用。ヘッダーにスプリント名・期間・一覧へ戻るリンクを追加する最小限
 
@@ -181,7 +181,7 @@ model Task {
 ### 4.3 Server Actions（`apps/frontend/app/actions.ts` 追加）
 
 `createSprintAction` / `updateSprintAction` / `deleteSprintAction`
-（命名は `docs/glossary.md` の `{verb}{Noun}Action` パターン）
+（命名は `docs/conventions.md` の `{verb}{Noun}Action` パターン）
 
 - 実行後に `revalidatePath` で一覧 / 詳細を更新
 - 既存ボード画面の「手動リロード必須」課題は今回のスコープ外（新画面のみ解消）
@@ -218,7 +218,8 @@ model Task {
 | `docs/api.md` | 新エンドポイント 5 件、旧 `/api/board` 削除、§10 将来拡張の反映 |
 | `docs/architecture.md` | ER 図・BCE マッピング・データフロー更新 |
 | `docs/design.md` | 一覧画面のコンポーネント仕様・進捗バー仕様 |
-| `docs/glossary.md` | Sprint/スプリント の用語追加、命名規約反映 |
+| `docs/glossary.md` | Sprint/スプリント の用語追加 |
+| `docs/conventions.md` | 追加コードの命名規約反映 |
 
 ---
 
