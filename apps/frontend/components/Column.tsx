@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
-import { moveTaskAction } from '@/app/actions'
+import { moveTaskAction } from '../app/actions'
 import TaskCard from './TaskCard'
 import CreateForm from './CreateForm'
 
@@ -11,7 +11,7 @@ interface ColumnProps {
   onTaskMove: (taskId: string, targetColumnId: string) => Promise<void>
 }
 
-interface Task {
+export interface Task {
   id: string
   columnId: string
   title: string
