@@ -10,11 +10,6 @@ beforeAll(async () => {
   cols = await ensureTestSprint()
 })
 
-async function getBoard() {
-  const res = await app.request('/api/board')
-  return res
-}
-
 async function createTask(body: unknown) {
   const res = await app.request('/api/tasks', {
     method: 'POST',
@@ -23,18 +18,6 @@ async function createTask(body: unknown) {
   })
   return res
 }
-
-describe('GET /api/board', () => {
-  it('returns columns and tasks', async () => {
-    const res = await getBoard()
-    expect(res.status).toBe(200)
-    const data = await res.json()
-    expect(data).toHaveProperty('columns')
-    expect(data).toHaveProperty('tasks')
-    expect(Array.isArray(data.columns)).toBe(true)
-    expect(data.columns.length).toBeGreaterThanOrEqual(3)
-  })
-})
 
 describe('POST /api/tasks', () => {
   it('rejects empty title with 400', async () => {

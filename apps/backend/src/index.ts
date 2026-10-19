@@ -115,11 +115,6 @@ const routes = app
     })
     return c.json({ sprint, columns, tasks })
   })
-  .get('/api/board', async (c) => {
-    const allColumns = await db.column.findMany({ orderBy: { position: 'asc' } })
-    const allTasks = await db.task.findMany({ orderBy: { position: 'asc' } })
-    return c.json({ columns: allColumns, tasks: allTasks })
-  })
   .post('/api/tasks', zValidator('json', insertTaskSchema, (result, c) => {
     if (!result.success) {
       return c.json({ success: false, error: result.error.flatten() }, 400)
