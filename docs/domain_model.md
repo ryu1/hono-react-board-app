@@ -47,9 +47,9 @@ classDiagram
         +position: number
     }
 
-    Sprint "1" *-- "3" Column : owns (fixed)
+    Sprint "1" *-- "1..3" Column : owns (固定3)
     Sprint "1" *-- "1" Board : aggregate
-    Board "1" *-- "3" Column : contains
+    Board "1" *-- "1..3" Column : contains (固定3)
     Board "1" *-- "0..*" Task : contains
     Column "1" *-- "0..*" Task : owns
     Task --> Column : columnId (FK)

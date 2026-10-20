@@ -488,8 +488,8 @@ flowchart LR
     TaskActions -.->|完了| State["※楽観的更新なし"]
 ```
 
-**注意**: 現状、Server Action 実行後のローカル状態自動更新（楽観的 UI や再取得）は未実装。手動リロードまたは実装追加が必要。
-- スプリント操作の Server Action 実行後は `revalidatePath` で一覧 / 詳細を再取得
+**注意**: タスク操作系 Server Action（作成・移動・更新・削除）実行後のローカル状態自動更新（楽観的 UI や再取得）は未実装。手動リロードまたは実装追加が必要。
+- スプリント操作の Server Action（作成・更新・削除）実行後は `revalidatePath` で一覧 / 詳細を再取得する（Task 5 実装済み）
 
 ---
 

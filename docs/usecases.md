@@ -52,7 +52,7 @@ flowchart LR
 
 **事前条件:**
 - バックエンドサーバーが起動している
-- スプリントが存在する（`GET /api/sprints/:id/board` で 404 以外）
+- 指定 ID のスプリントが DB に存在する
 - ブラウザでフロントエンド（`http://localhost:3000/sprints/[id]`）にアクセス可能
 
 **事後条件:**
