@@ -74,7 +74,7 @@ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica N
 
 ## 5. コンポーネント仕様
 
-### 5.1 ページレイアウト (`app/layout.tsx` + `app/page.tsx`)
+### 5.1 ページレイアウト (`app/layout.tsx` + `app/page.tsx` + `app/sprints/[id]/page.tsx`)
 
 ```typescript
 // layout.tsx - メタデータ + ルートレイアウト
@@ -83,15 +83,123 @@ export const metadata: Metadata = {
   description: 'End-to-End 型安全なフルスタック・カンバンアプリ',
 }
 
-// page.tsx - RSC でデータ取得、Board に渡す
-export default async function BoardPage() {
-  const res = await client.api.board.$get()
-  const { columns, tasks } = await res.json()
-  return <Board initialColumns={columns} initialTasks={tasks} />
+// page.tsx - RSC でスプリント一覧取得、SprintList に渡す
+export default async function SprintListPage() {
+  const res = await client.api.sprints.$get()
+  if (!res.ok) throw new Error('データ取得失敗')
+  const sprints = await res.json()
+  return <SprintList initialSprints={sprints} />
+}
+
+// app/sprints/[id]/page.tsx - RSC でボード取得、Board に渡す
+export default async function SprintBoardPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const res = await client.api.sprints[':id'].board.$get({ param: { id } })
+  if (res.status === 404) notFound()
+  if (!res.ok) throw new Error('データ取得失敗')
+  const { sprint, columns, tasks } = await res.json()
+  return (
+    <Board
+      initialColumns={columns}
+      initialTasks={tasks}
+      sprintName={sprint.name}
+      sprintPeriod={`${sprint.startDate} 〜 ${sprint.endDate}`}
+    />
+  )
 }
 ```
 
-### 5.2 ボードコンテナ (`components/Board.tsx`)
+### 5.2 スプリント一覧 (`components/SprintList.tsx`)
+
+```typescript
+container: {
+  padding: '40px',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  backgroundColor: '#f8fafc',
+  minHeight: '100vh',
+  maxWidth: '720px',
+  margin: '0 auto',
+}
+header: { marginBottom: '24px' },
+title: { fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0 },
+subtitle: { fontSize: '14px', color: '#64748b', marginTop: '6px' },
+list: { display: 'flex', flexDirection: 'column', gap: '12px' },
+empty: {
+  backgroundColor: '#ffffff',
+  padding: '32px',
+  borderRadius: '8px',
+  border: '1px dashed #cbd5e1',
+  color: '#64748b',
+  textAlign: 'center',
+},
+```
+
+- 最大幅 720px の縦積みレイアウト
+- 空状態メッセージ: 「スプリントがありません。最初のスプリントを作成しましょう。」
+
+### 5.3 スプリント作成フォーム (`components/SprintCreateForm.tsx`)
+
+```typescript
+form: {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  backgroundColor: '#ffffff',
+  padding: '16px',
+  borderRadius: '8px',
+  border: '1px solid #e2e8f0',
+  marginBottom: '16px',
+}
+input: {
+  padding: '8px 12px', borderRadius: '6px',
+  border: '1px solid #cbd5e1', fontSize: '14px',
+}
+dateLabel: { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: '#475569' },
+button: {
+  padding: '8px', backgroundColor: '#2563eb', color: '#ffffff',
+  border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer',
+}
+```
+
+- Conform + Zod バリデーション連携 (`useActionState(createSprintAction)`)
+- フィールド: `id` (hidden, UUID自動生成), `name` (text), `startDate` (date), `endDate` (date)
+- バリデーションエラー表示: 赤文字でフィールドエラー表示
+- 送信中はボタン無効化・ラベル変更 (`isPending` 状態)
+
+### 5.4 スプリントカード (`components/SprintCard.tsx`)
+
+```typescript
+card: {
+  backgroundColor: '#ffffff',
+  padding: '16px',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  border: '1px solid #e2e8f0',
+}
+nameLink: {
+  fontSize: '16px', fontWeight: 700, color: '#1e293b', textDecoration: 'none',
+}
+period: { fontSize: '12px', color: '#64748b', marginTop: '4px' },
+editBtn: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', cursor: 'pointer', padding: '0 4px' },
+deleteBtn: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '14px', cursor: 'pointer', padding: '0 4px' },
+progressTrack: {
+  height: '8px', backgroundColor: '#e2e8f0', borderRadius: '9999px', marginTop: '12px', overflow: 'hidden',
+},
+progressFill: { height: '100%', backgroundColor: '#2563eb', borderRadius: '9999px' },
+progressText: { fontSize: '12px', color: '#475569', marginTop: '6px' },
+```
+
+- スプリント名は `/sprints/[id]` への Link (`<a>`)
+- 進捗バー: `role="progressbar"` / `aria-valuenow` / `aria-valuemin` / `aria-valuemax` / `aria-label` 付与 (NFR-005 対応)
+- 進捗テキスト: `{progress}% ({done}/{total})` 形式
+- 編集: ✎ ボタンでインライン編集フォーム切替（名前・開始日・終了日）
+- 削除: 🗑 ボタン + `window.confirm` で確認（配下タスクも削除される旨を通知）
+
+### 5.5 ボードコンテナ (`components/Board.tsx`)
 ```typescript
 container: {
   padding: '40px',
@@ -223,25 +331,46 @@ button: {
 
 ### グリッドシステム
 - **非採用**: CSS Grid / Flexbox グリッドシステムなし
-- 固定 3 カラム × 固定幅 300px のみ
+- 一覧画面: 最大幅 720px の縦積みレイアウト
+- 詳細画面: 既存ボードの横並び (固定 3 カラム × 固定幅 300px) + 戻りリンク
 
 ### ブレークポイント
 - **レスポンシブ非対応**（仕様書 `BR-005` 準拠）
 - 画面幅 < 960px では横スクロール発生（将来拡張で対応予定）
 
 ### コンテナ制約
-- 最大幅: なし（フル幅使用）
-- パディング: 40px 固定
+- 一覧画面: 最大幅 720px、パディング 40px、中央揃え
+- 詳細画面: 最大幅なし（フル幅使用）、パディング 40px 固定
 
 ---
 
 ## 7. 画面デザイン詳細
 
-### 7.1 初期表示（シードデータ投入後）
+### 7.1 スプリント一覧画面（初期表示）
+```
+┌─────────────────────────────────────┐
+│  スプリント一覧                       │
+│  スプリント毎にカンバンを管理します      │
+│ ┌─────────────────────────────────┐ │
+│ │ ＋ 新規スプリント作成（フォーム）    │ │  ← 名前/開始/終了 + 送信
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ スプリント2   10/13〜10/26       │ │  ← スプリント名はリンク
+│ │ ████████░░░░  37.5% (3/8)  ✎ 🗑 │ │     進捗バー + 編集・削除
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ スプリント1   10/01〜10/14       │ │
+│ │ ████░░░░░░░░  40.0% (2/5)  ✎ 🗑 │ │
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+```
+
+### 7.2 スプリント詳細画面（ボード表示）
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  🚀 超高速フルスタック・タスクボード                                │
-│  End-to-End 型安全なフルスタック・カンバンアプリ                    │
+│  ← 一覧へ戻る                                                         │
+│  スプリント1                                                          │
+│  2026-10-01 〜 2026-10-14                                           │
 ├──────────────────┬──────────────────────┬──────────────────────────┤
 │  Todo 📝      3  │ In Progress 🚀   1   │ Done ✅            0    │
 │  ┌────────────┐  │ ┌────────────────┐   │ ┌────────────────────┐  │
@@ -252,10 +381,21 @@ button: {
 │  │ Task 2     │  │                      │                         │
 │  └────────────┘  │                      │                         │
 │  [+ 新規...] [追加]                    │ [+ 新規...] [追加]        │
-└──────────────────┴──────────────────────┴──────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 タスク編集中
+### 7.3 404 ページ (`not-found.tsx`)
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│              ページが見つかりません                                    │
+│                                                                    │
+│         ← スプリント一覧へ戻る                                        │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 7.4 タスク編集中
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │ ┌──────────────────────────────────────────────────────────────┐  │
@@ -267,7 +407,7 @@ button: {
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.3 ドラッグ中
+### 7.5 ドラッグ中
 - ドラッグ対象カード: `opacity: 0.5`, `cursor: grabbing`
 - ドロップターゲットカラム: `background-color: #e2e8f0` (視覚的フィードバック)
 - ※現状 CSS のみで実装、JS でのクラス切替は未実装（将来拡張）
@@ -278,20 +418,31 @@ button: {
 
 ### 8.1 初期データ取得 (RSC)
 ```
-Server (page.tsx)
-  └─ await client.api.board.$get()  // 完全サーバーサイド
-       └─ { columns, tasks } → Board コンポーネント props
+# 一覧画面
+Server (app/page.tsx)
+  └─ await client.api.sprints.$get()  // 完全サーバーサイド
+       └─ [{ id, name, startDate, endDate, taskCount, doneCount, progress }] → SprintList コンポーネント props
+
+# 詳細画面
+Server (app/sprints/[id]/page.tsx)
+  └─ await client.api.sprints[':id'].board.$get()  // 完全サーバーサイド
+       └─ { sprint, columns, tasks } → Board コンポーネント props
 ```
 
 ### 8.2 ミューテーション (Server Actions)
 ```
 Client (Component)
   └─ useActionState(action, initialState)
-       ├─ createTaskAction(formData)  → POST /api/tasks
-       ├─ deleteTaskAction(formData)  → DELETE /api/tasks/:id
-       ├─ updateTaskAction(formData)  → PUT /api/tasks/update
-       └─ moveTaskAction(formData)    → PATCH /api/tasks/move
+       ├─ createSprintAction(formData)      # 一覧画面
+       ├─ updateSprintAction(formData)      # 一覧画面
+       ├─ deleteSprintAction(formData)      # 一覧画面
+       ├─ createTaskAction(formData)        # 詳細画面
+       ├─ deleteTaskAction(formData)        # 詳細画面
+       ├─ updateTaskAction(formData)        # 詳細画面
+       └─ moveTaskAction(formData)          # 詳細画面
 ```
+
+各 Server Action が呼び出す API の詳細は [`docs/api.md`](api.md)（唯一の正本）を参照。対応ユースケースは [`docs/usecases.md`](usecases.md) を参照。
 
 ### 8.3 ローカル状態管理
 | 状態 | 管理方法 | 永続化 |
@@ -315,6 +466,7 @@ Client (Component)
 | ラベル関連付け | Conform `getInputProps` / `getFormProps` で `id`/`htmlFor` 自動生成 |
 | プレースホルダー | 入力ヒントとして機能（ラベル代替ではない） |
 | ドラッグ操作 | `draggable` 属性、キーボード代替未実装（将来対応） |
+| 進捗バー (NFR-005) | `role="progressbar"` / `aria-valuenow` / `aria-valuemin` / `aria-valuemax` / `aria-label` 付与 (`SprintCard`) |
 
 ### 9.2 未対応・将来対応項目
 | 項目 | 対応方針 |

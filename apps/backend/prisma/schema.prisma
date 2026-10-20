@@ -13,11 +13,24 @@ datasource db {
   provider = "sqlite"
 }
 
+model Sprint {
+  id        String   @id
+  /// @zod.min(1, 'タイトルは必須です')
+  name      String
+  startDate String
+  endDate   String
+  columns   Column[]
+
+  @@map("sprints")
+}
+
 model Column {
   id       String @id
   /// @zod.min(1, 'タイトルは必須です')
   title    String
   position Int
+  sprintId String @map("sprint_id")
+  sprint   Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
   tasks    Task[]
 
   @@map("columns")

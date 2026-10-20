@@ -2,6 +2,18 @@
 
 ## 1. システム全体構成
 
+### 1.1 アーキテクチャパターン
+
+本システムは **レイヤードアーキテクチャ**（フロントエンド層 / API 層 / データアクセス層）を採用し、Hono RPC による End-to-End 型安全性を担保する。
+
+| レイヤー | 担当 | 技術 |
+|---------|------|------|
+| プレゼンテーション層 | RSC + Client Components + Server Actions | Next.js 15, React 19 |
+| アプリケーション層 | REST API ルート + バリデーション | Hono, Zod (`zValidator`) |
+| データアクセス層 | ORM 経由の永続化 | Prisma ORM, better-sqlite3 |
+
+### 1.2 システム構成図
+
 ```mermaid
 graph TD
     subgraph "Frontend (Next.js 15 App Router)"
@@ -23,7 +35,7 @@ graph TD
     APP_TYPE -.->|Type Inference| RPC
 ```
 
-### コンポーネント関係
+### 1.3 コンポーネント関係
 
 | コンポーネント | 役割 | 技術 |
 |--------------|------|------|
@@ -34,22 +46,82 @@ graph TD
 
 ---
 
-## 2. ディレクトリ構造
+## 2. 堅牢性分析（Boundary–Control–Entity）
+
+堅牢性分析は必要に応じて適用する。本節では、責務分担の整理が必要なタスク移動（UC-003）を中心に、ユースケースを「画面/外部境界（Boundary）」「制御（Control）」「データ（Entity）」へ分解し、コード構造へのマッピングを示す。ユースケース仕様の正本は [`docs/usecases.md`](usecases.md)、エンティティ定義の正本は [`docs/domain_model.md`](domain_model.md) を参照。
+
+### 2.1 BCE マッピング
+
+| UC ID | Boundary（画面/境界） | Control（制御） | Entity（データ） |
+|-------|----------------------|----------------|-----------------|
+| UC-001 ボード表示 | `page.tsx` (RSC), `Board.tsx`, `Column.tsx`, `TaskCard.tsx` | `client.api.board.$get()` (RPC) | `Column`, `Task` |
+| UC-002 タスク作成 | `CreateForm.tsx` | `createTaskAction` → `POST /api/tasks` | `Task` (`insertTaskSchema`) |
+| UC-003 タスク移動 | `TaskCard.tsx` (`onDragStart`), `Column.tsx` (`onDrop`) | `moveTaskAction` → `PATCH /api/tasks/move` | `Task` (`moveTaskSchema`) |
+| UC-004 タスク編集 | `TaskCard.tsx` (インライン編集モード) | `updateTaskAction` → `PUT /api/tasks/update` | `Task` (`updateTaskSchema`) |
+| UC-005 タスク削除 | `TaskCard.tsx` (× ボタン) | `deleteTaskAction` → `DELETE /api/tasks/:id` | `Task` |
+
+### 2.2 シーケンス図：タスク移動（UC-003）
+
+堅牢性分析の代表例。タスク移動（Drag & Drop → Server Action → API → DB）の動的フローを示す。
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant TaskCard as TaskCard (Boundary)
+    participant Column as Column (Boundary)
+    participant MoveAction as moveTaskAction (Control)
+    participant RPC as hc Client (Control)
+    participant API as Hono Backend (Control)
+    participant DB as Task/Column (Entity)
+
+    User->>TaskCard: タスクをドラッグ開始
+    TaskCard->>TaskCard: onDragStart: dataTransfer.setData(taskId)
+    User->>Column: 別カラムでドロップ
+    Column->>Column: onDrop: e.preventDefault(), taskId 取得
+    Column->>MoveAction: moveTaskAction(formData: {id, columnId, position: 999})
+    MoveAction->>RPC: client.api.tasks.move.$patch({json})
+    RPC->>API: PATCH /api/tasks/move
+    API->>API: zValidator(moveTaskSchema)
+    API->>DB: UPDATE tasks SET column_id=?, position=? WHERE id=?
+    DB-->>API: count
+    alt count > 0
+        API->>DB: SELECT * FROM tasks WHERE id=?
+        DB-->>API: updated task
+        API-->>RPC: { success: true, data }
+    else
+        API-->>RPC: 404 { success: false, error: 'Not Found' }
+    end
+    MoveAction-->>Column: { success: true }
+    Note over Column,TaskCard: ※現状: ローカル state 更新なし (楽観的 UI 未実装)
+```
+
+---
+
+## 3. ディレクトリ構造
 
 ディレクトリ構造とファイル配置ルールは [`docs/conventions.md#1-フォルダファイル構成`](conventions.md#1-フォルダファイル構成) を参照してください。
 
 ---
 
-## 3. データモデル
+## 4. データモデル
 
 ```mermaid
 erDiagram
+    SPRINTS ||--o{ COLUMNS : "has"
     COLUMNS ||--o{ TASKS : "has"
+    
+    SPRINTS {
+        String id PK
+        String name
+        String startDate
+        String endDate
+    }
     
     COLUMNS {
         String id PK
         String title
         Int position
+        String sprintId FK
     }
     
     TASKS {
@@ -63,12 +135,23 @@ erDiagram
 
 ### テーブル定義 (Prisma `schema.prisma`)
 
+#### `Sprint` モデル (`sprints` テーブル)
+| フィールド | 型 | 制約 | 説明 |
+|-----------|-----|------|------|
+| `id` | `String` | `@id` (PK) | スプリント一意識別子 (UUID) |
+| `name` | `String` | NOT NULL, `@zod.min(1)` | スプリント名 |
+| `startDate` | `String` | NOT NULL | 開始日 (ISO 形式 YYYY-MM-DD) |
+| `endDate` | `String` | NOT NULL | 終了日 (ISO 形式 YYYY-MM-DD) |
+| `columns` | `Column[]` | リレーション | 所有カラム (カスケード削除) |
+
 #### `Column` モデル (`columns` テーブル)
 | フィールド | 型 | 制約 | 説明 |
 |-----------|-----|------|------|
-| `id` | `String` | `@id` (PK) | カラム一意識別子 (例: `col-todo`) |
+| `id` | `String` | `@id` (PK) | カラム一意識別子 (例: `col-<sprintId>-todo`) |
 | `title` | `String` | NOT NULL, `@zod.min(1)` | 表示名 (例: `Todo 📝`) |
 | `position` | `Int` | NOT NULL | 表示順 (0, 1, 2) |
+| `sprintId` | `String` | `@map("sprint_id")`, FK | 所属スプリント (`Sprint.id` 参照, `onDelete: Cascade`) |
+| `sprint` | `Sprint` | リレーション | 親スプリント |
 | `tasks` | `Task[]` | リレーション | 所属タスク (カスケード削除) |
 
 #### `Task` モデル (`tasks` テーブル)
@@ -83,36 +166,39 @@ erDiagram
 
 ---
 
-## 4. コンポーネント設計
+## 5. コンポーネント設計
 
-### 4.1 共有パッケージ (`@my-app/shared`)
+### 5.1 共有パッケージ (`@my-app/shared`)
 
 **責務**: バックエンドの Prisma スキーマから `prisma-zod-generator` で自動生成される Zod スキーマをフロントエンドへ中継・エクスポート
 
 ```typescript
 // packages/shared/src/index.ts
-export { insertTaskSchema, insertColumnSchema } from '../../../apps/backend/src/db/schema'
-export type { CreateTaskInput } from '../../../apps/backend/src/db/schema'
+export { insertTaskSchema, insertColumnSchema, insertSprintSchema, updateSprintSchema } from '../../../apps/backend/src/db/schema'
+export type { CreateTaskInput, CreateSprintInput } from '../../../apps/backend/src/db/schema'
 ```
 
 **エクスポート:**
 - `insertTaskSchema` - タスク作成用 Zod スキーマ (`title` 必須, `description` 任意, `position` coerce)
 - `insertColumnSchema` - カラム作成用 Zod スキーマ (`title` 必須)
+- `insertSprintSchema` - スプリント作成用 Zod スキーマ (`name` 必須, `startDate`/`endDate` ISO日付 + 期間バリデーション)
+- `updateSprintSchema` - スプリント更新用 Zod スキーマ (`id` 除く)
 - `CreateTaskInput` - `z.infer<typeof insertTaskSchema>` 型
+- `CreateSprintInput` - `z.infer<typeof insertSprintSchema>` 型
 
 ---
 
-### 4.2 バックエンド (`apps/backend`)
+### 5.2 バックエンド (`apps/backend`)
 
-#### 4.2.1 データベース層 (`src/db/`)
+#### 5.2.1 データベース層 (`src/db/`)
 
 | ファイル | 責務 |
 |----------|------|
-| `schema.ts` | `prisma-zod-generator` 生成スキーマ (`TaskModelSchema`, `ColumnModelSchema`) を import し、フロントエンド用に調整 (`omit`, `extend`, `nullish`, `coerce`) |
+| `schema.ts` | `prisma-zod-generator` 生成スキーマ (`TaskModelSchema`, `ColumnModelSchema`, `SprintModelSchema`) を import し、フロントエンド用に調整 (`omit`, `extend`, `nullish`, `coerce`) |
 | `index.ts` | `@prisma/adapter-better-sqlite3` で better-sqlite3 接続 + `PrismaClient` export |
-| `seed.ts` | べき等シード: 3 カラム (Todo/In Progress/Done) を初回のみ投入 (`upsert`) |
+| `seed.ts` | **廃止**: スプリント作成時に 3 カラムをトランザクションで自動生成するため、起動時シードは不要 |
 
-#### 4.2.2 API ルート (`src/index.ts`)
+#### 5.2.2 API ルート (`src/index.ts`)
 
 ```mermaid
 sequenceDiagram
@@ -120,10 +206,32 @@ sequenceDiagram
     participant Server as Hono App
     participant DB as Prisma + SQLite
 
-    Client->>Server: GET /api/board
-    Server->>DB: findMany columns, tasks (orderBy position)
-    DB-->>Server: columns[], tasks[]
-    Server-->>Client: { columns, tasks }
+    Client->>Server: GET /api/sprints
+    Server->>DB: findMany sprints (orderBy startDate desc) with columns.tasks
+    DB-->>Server: sprints[]
+    Server-->>Client: [{ id, name, startDate, endDate, taskCount, doneCount, progress }]
+
+    Client->>Server: POST /api/sprints {id, name, startDate, endDate}
+    Server->>Server: zValidator(insertSprintSchema)
+    Server->>DB: $transaction: sprint.create + 3 columns create
+    DB-->>Server: created sprint
+    Server-->>Client: { success: true, data: sprint }
+
+    Client->>Server: GET /api/sprints/:id/board
+    Server->>DB: findUnique sprint + findMany columns + findMany tasks
+    DB-->>Server: { sprint, columns, tasks }
+    Server-->>Client: { sprint, columns, tasks }
+
+    Client->>Server: PATCH /api/sprints/:id {name, startDate, endDate}
+    Server->>Server: zValidator(updateSprintSchema)
+    Server->>DB: sprint.updateMany + count check + findUniqueOrThrow
+    DB-->>Server: updated sprint
+    Server-->>Client: { success: true, data: sprint }
+
+    Client->>Server: DELETE /api/sprints/:id
+    Server->>DB: $transaction: task.deleteMany -> column.deleteMany -> sprint.delete
+    DB-->>Server: deleted
+    Server-->>Client: { success: true, id }
 
     Client->>Server: POST /api/tasks {title, columnId, position}
     Server->>Server: zValidator(insertTaskSchema)
@@ -167,7 +275,7 @@ sequenceDiagram
 
 **エンドポイント一覧** → 詳細は [`docs/api.md`](api.md) を参照
 
-#### 4.2.3 サーバー起動 (`src/server.ts`)
+#### 5.2.3 サーバー起動 (`src/server.ts`)
 
 ```typescript
 import { serve } from '@hono/node-server'
@@ -177,7 +285,7 @@ const port = Number(process.env.PORT ?? 3000)
 serve({ fetch: app.fetch, port })
 ```
 
-#### 4.2.4 型定義・エクスポート
+#### 5.2.4 型定義・エクスポート
 
 ```typescript
 // apps/backend/src/index.ts
@@ -187,9 +295,9 @@ export default app
 
 ---
 
-### 4.3 フロントエンド (`apps/frontend`)
+### 5.3 フロントエンド (`apps/frontend`)
 
-#### 4.3.1 RPC クライアント (`app/client.ts`)
+#### 5.3.1 RPC クライアント (`app/client.ts`)
 
 ```typescript
 import { hc } from 'hono/client'
@@ -201,46 +309,85 @@ export const client = hc<AppType>('http://localhost:3001/')
 - `AppType` から全エンドポイントの型を推論
 - ベース URL は開発時 `http://localhost:3001/`
 
-#### 4.3.2 Server Actions (`app/actions.ts`)
+#### 5.3.2 Server Actions (`app/actions.ts`)
 
 ```typescript
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { client } from './client'
-import { insertTaskSchema } from '@my-app/shared'
+import { insertTaskSchema, insertSprintSchema, updateSprintSchema } from '@my-app/shared'
 import { parseWithZod } from '@conform-to/zod'
 
 export async function createTaskAction(formData: FormData) { ... }
 export async function deleteTaskAction(formData: FormData) { ... }
 export async function updateTaskAction(formData: FormData) { ... }
 export async function moveTaskAction(formData: FormData) { ... }
+export async function createSprintAction(formData: FormData) { ... }
+export async function updateSprintAction(formData: FormData) { ... }
+export async function deleteSprintAction(formData: FormData) { ... }
 ```
 
 - `'use server'` ディレクティブでサーバー専用関数化
 - Conform `parseWithZod` でフォームデータをバリデーション
 - RPC クライアント経由でバックエンド API 呼び出し
 - `submission.reply()` で Conform 対応レスポンス返却
+- スプリント操作の Server Action 実行後に `revalidatePath` で一覧 / 詳細を更新
 
-#### 4.3.3 ページコンポーネント (`app/page.tsx` - RSC)
+#### 5.3.3 ページコンポーネント
 
+**一覧ページ (`app/page.tsx` - RSC):**
 ```typescript
 import { client } from './client'
+import SprintList from '@/components/SprintList'
+
+export default async function SprintListPage() {
+  const res = await client.api.sprints.$get()
+  if (!res.ok) throw new Error('データ取得失敗')
+  const sprints = await res.json()
+
+  return <SprintList initialSprints={sprints} />
+}
+```
+
+**詳細ページ (`app/sprints/[id]/page.tsx` - RSC):**
+```typescript
+import { notFound } from 'next/navigation'
+import { client } from '../../client'
 import Board from '@/components/Board'
 
-export default async function BoardPage() {
-  const res = await client.api.board.$get()
-  if (!res.ok) throw new Error('データ取得失敗')
-  const { columns, tasks } = await res.json()
-  
-  return <Board initialColumns={columns} initialTasks={tasks} />
+export default async function SprintBoardPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const res = await client.api.sprints[':id'].board.$get({ param: { id } })
+  if (res.status === 404) {
+    notFound()
+  }
+  if (!res.ok) {
+    throw new Error('データ取得失敗')
+  }
+  const { sprint, columns, tasks } = await res.json()
+
+  return (
+    <Board
+      initialColumns={columns}
+      initialTasks={tasks}
+      sprintName={sprint.name}
+      sprintPeriod={`${sprint.startDate} 〜 ${sprint.endDate}`}
+    />
+  )
 }
 ```
 
 - **React Server Component (RSC)**: サーバーでデータ取得、HTML ストリーミング
-- `client.api.board.$get()` で初期データ取得
-- Client Component (`Board`) に初期データを props で渡す
+- 一覧: `client.api.sprints.$get()` でスプリント一覧取得
+- 詳細: `client.api.sprints[':id'].board.$get()` でボードデータ取得、404 時は `notFound()`
+- Client Component (`SprintList`, `Board`) に初期データを props で渡す
 
-#### 4.3.4 ボードコンポーネント (`components/Board.tsx` - Client Component)
+#### 5.3.4 ボードコンポーネント (`components/Board.tsx` - Client Component)
 
 ```typescript
 'use client'
@@ -268,15 +415,18 @@ export default function Board({ initialColumns, initialTasks }: BoardProps) {
 - `useState` でローカル タスク状態管理
 - Server Actions (`moveTaskAction` 等) でミューテーション実行
 
-#### 4.3.5 カラム・タスクカード・作成フォーム
+#### 5.3.5 カラム・タスクカード・作成フォーム
 
 | コンポーネント | 責務 | 主なフック/API |
 |--------------|------|----------------|
+| `SprintList.tsx` | スプリント一覧表示、作成フォーム配置、空状態 | `SprintCreateForm`, `SprintCard` |
+| `SprintCreateForm.tsx` | スプリント作成フォーム、Conform + Zod バリデーション | `useActionState` (createSprintAction), `useForm`, `parseWithZod` |
+| `SprintCard.tsx` | スプリントカード表示、進捗バー、インライン編集、削除 | `useState` (編集モード), `useActionState` (updateSprintAction, deleteSprintAction) |
 | `Column.tsx` | カラム表示、ドロップターゲット、作成フォーム配置 | `onDragOver`, `onDrop`, `CreateForm` |
 | `TaskCard.tsx` | タスク表示、ドラッグソース、インライン編集、削除 | `useState` (編集モード), `useActionState` (更新/削除), `onDragStart` |
 | `CreateForm.tsx` | タスク作成フォーム、Conform + Zod バリデーション | `useActionState` (createTaskAction), `useForm`, `parseWithZod` |
 
-#### 4.3.6 レイアウト (`app/layout.tsx`)
+#### 5.3.6 レイアウト (`app/layout.tsx`)
 
 ```typescript
 export const metadata: Metadata = {
@@ -299,79 +449,66 @@ export default function RootLayout({ children }) {
 
 ---
 
-## 5. データフロー
+## 6. データフロー
 
 ```mermaid
 flowchart LR
-    subgraph Frontend_RSC ["RSC: page.tsx"]
-        Load["client.api.board.\$get()"]
+    subgraph Frontend_RSC_List ["RSC: / page.tsx"]
+        LoadList["client.api.sprints.\$get()"]
+    end
+
+    subgraph Frontend_RSC_Detail ["RSC: /sprints/[id] page.tsx"]
+        LoadDetail["client.api.sprints[':id'].board.\$get()"]
     end
 
     subgraph Frontend_Client ["Client Components"]
-        Props["initialColumns, initialTasks"]
+        PropsList["initialSprints"]
+        PropsDetail["initialColumns, initialTasks, sprintName, sprintPeriod"]
         State["useState tasks"]
-        Actions["Server Actions: create/delete/update/move"]
+        SprintActions["Server Actions: createSprint/updateSprint/deleteSprint"]
+        TaskActions["Server Actions: create/delete/update/move"]
         DnD["Drag & Drop: HTML5 API"]
     end
 
     subgraph Backend ["Hono + Prisma"]
         ZVal["zValidator: Zod バリデーション"]
         Prisma["Prisma Client"]
-        Seed["起動時 seed()"]
     end
 
-    Load -->|HTTP GET| ZVal
-    Actions -->|HTTP POST/PATCH/PUT/DELETE| ZVal
+    LoadList -->|HTTP GET /api/sprints| ZVal
+    LoadDetail -->|HTTP GET /api/sprints/:id/board| ZVal
+    SprintActions -->|HTTP POST/PATCH/DELETE /api/sprints| ZVal
+    TaskActions -->|HTTP POST/PATCH/PUT/DELETE /api/tasks| ZVal
     ZVal --> Prisma
     Prisma -->|SQLite| DB[(local.db)]
-    Seed --> Prisma
     
-    Props -.->|初期データ| State
-    DnD -.->|移動操作| Actions
-    Actions -.->|完了| State["※楽観的更新なし"]
+    PropsList -.->|初期データ| SprintList["SprintList Component"]
+    PropsDetail -.->|初期データ| State
+    DnD -.->|移動操作| TaskActions
+    TaskActions -.->|完了| State["※楽観的更新なし"]
 ```
 
-**注意**: 現状、Server Action 実行後のローカル状態自動更新（楽観的 UI や再取得）は未実装。手動リロードまたは実装追加が必要。
+**注意**: タスク操作系 Server Action（作成・移動・更新・削除）実行後のローカル状態自動更新（楽観的 UI や再取得）は未実装。手動リロードまたは実装追加が必要。
+- スプリント操作の Server Action（作成・更新・削除）実行後は `revalidatePath` で一覧 / 詳細を再取得する（Task 5 実装済み）
 
 ---
 
-## 6. エラーハンドリング方針
+## 7. エラーハンドリング方針
 
-### 6.1 バックエンド
+### 7.1 バックエンド
 | 種別 | 対応 | HTTP ステータス |
 |------|------|----------------|
 | バリデーション失敗 | `zValidator` 自動処理、エラー詳細返却 | 400 |
 | Prisma エラー | try-catch で捕捉、ログ出力後汎用エラー | 500 |
 | リソース不存在 | `updateMany`/`deleteMany` の count で判定 | 404 |
 
-### 6.2 フロントエンド
+### 7.2 フロントエンド
 | 種別 | 対応 |
 |------|------|
 | RSC データ取得失敗 | `throw new Error` → Next.js Error Boundary (`error.tsx` 未実装) |
 | Server Action 失敗 | Conform `submission.reply()` でフォームにエラー表示 (`CreateForm`) |
 | `useActionState` 失敗 | 戻り値 `{ success: false, error }` でハンドリング (`TaskCard`) |
 | ネットワークエラー | ブラウザ標準エラー、トースト通知未実装 |
-
----
-
-## 7. ユースケース図
-
-```mermaid
-flowchart LR
-    User((User))
-    
-    User --> UC1["ボード表示 (RSC)"]
-    User --> UC2["タスク作成 (Server Action)"]
-    User --> UC3["タスク移動 (Server Action + DnD)"]
-    User --> UC4["タスク編集 (Server Action)"]
-    User --> UC5["タスク削除 (Server Action)"]
-    
-    UC1 --> Backend["GET /api/board"]
-    UC2 --> Backend["POST /api/tasks"]
-    UC3 --> Backend["PATCH /api/tasks/move"]
-    UC4 --> Backend["PUT /api/tasks/update"]
-    UC5 --> Backend["DELETE /api/tasks/:id"]
-```
 
 ---
 
@@ -384,12 +521,24 @@ classDiagram
     }
     
     class APIRoutes {
-        +board: BoardAPI
+        +sprints: SprintAPI
         +tasks: TaskAPI
     }
     
-    class BoardAPI {
-        +$get(): BoardResponse
+    class SprintAPI {
+        +$get(): SprintListResponse[]
+        +$post(json: CreateSprintInput): SprintResponse
+        +':id': SprintIdAPI
+    }
+    
+    class SprintIdAPI {
+        +$patch(json: UpdateSprintInput): SprintResponse
+        +$delete(param: string): DeleteResponse
+        +board: SprintBoardAPI
+    }
+    
+    class SprintBoardAPI {
+        +$get(param: string): SprintBoardResponse
     }
     
     class TaskAPI {
@@ -407,7 +556,28 @@ classDiagram
         +$patch(json: MoveTaskInput): TaskResponse
     }
     
-    class BoardResponse {
+    class SprintListResponse {
+        +id: string
+        +name: string
+        +startDate: string
+        +endDate: string
+        +taskCount: number
+        +doneCount: number
+        +progress: number
+    }
+    
+    class SprintResponse {
+        +success: true
+        +data: SprintListResponse
+    }
+    
+    class SprintBoardResponse {
+        +success: true
+        +data: SprintBoardData
+    }
+
+    class SprintBoardData {
+        +sprint: SprintListResponse
         +columns: Column[]
         +tasks: Task[]
     }
@@ -424,6 +594,19 @@ classDiagram
         +title: string
         +description: string | null
         +position: number
+    }
+    
+    class CreateSprintInput {
+        +id: string
+        +name: string
+        +startDate: string
+        +endDate: string
+    }
+    
+    class UpdateSprintInput {
+        +name?: string
+        +startDate?: string
+        +endDate?: string
     }
     
     class CreateTaskInput {
@@ -446,46 +629,21 @@ classDiagram
         +description: string | null
     }
     
+    class TaskResponse {
+        +success: true
+        +data: Task
+    }
+    
+    class DeleteResponse {
+        +success: true
+        +id: string
+    }
+    
     AppType --> APIRoutes
-    APIRoutes --> BoardAPI
+    APIRoutes --> SprintAPI
     APIRoutes --> TaskAPI
+    SprintAPI --> SprintIdAPI
+    SprintIdAPI --> SprintBoardAPI
     TaskAPI --> UpdateAPI
     TaskAPI --> MoveAPI
-    BoardResponse --> Column
-    BoardResponse --> Task
-```
-
----
-
-## 9. シーケンス図：タスク移動（Drag & Drop → Server Action）
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant TaskCard as TaskCard (Client)
-    participant Column as Column (Client)
-    participant MoveAction as moveTaskAction (Server)
-    participant RPC as hc Client
-    participant API as Hono Backend
-    participant DB as SQLite
-
-    User->>TaskCard: タスクをドラッグ開始
-    TaskCard->>TaskCard: onDragStart: dataTransfer.setData(taskId)
-    User->>Column: 別カラムでドロップ
-    Column->>Column: onDrop: e.preventDefault(), taskId 取得
-    Column->>MoveAction: moveTaskAction(formData: {id, columnId, position: 999})
-    MoveAction->>RPC: client.api.tasks.move.$patch({json})
-    RPC->>API: PATCH /api/tasks/move
-    API->>API: zValidator(moveTaskSchema)
-    API->>DB: UPDATE tasks SET column_id=?, position=? WHERE id=?
-    DB-->>API: count
-    alt count > 0
-        API->>DB: SELECT * FROM tasks WHERE id=?
-        DB-->>API: updated task
-        API-->>RPC: { success: true, data }
-    else
-        API-->>RPC: 404 { success: false, error: 'Not Found' }
-    end
-    MoveAction-->>Column: { success: true }
-    Note over Column,TaskCard: ※現状: ローカル state 更新なし (楽観的 UI 未実装)
 ```

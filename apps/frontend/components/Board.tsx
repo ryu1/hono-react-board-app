@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { moveTaskAction } from '../app/actions'
 import Column from './Column'
 import type { Task } from './Column'
@@ -8,9 +9,11 @@ import type { Task } from './Column'
 interface BoardProps {
   initialColumns: { id: string; title: string; position: number }[]
   initialTasks: Task[]
+  sprintName?: string
+  sprintPeriod?: string
 }
 
-export default function Board({ initialColumns, initialTasks }: BoardProps) {
+export default function Board({ initialColumns, initialTasks, sprintName, sprintPeriod }: BoardProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [isMoving, setIsMoving] = useState(false)
 
@@ -27,8 +30,17 @@ export default function Board({ initialColumns, initialTasks }: BoardProps) {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>🚀 超高速フルスタック・タスクボード</h1>
-        <p style={styles.subtitle}>End-to-End 型安全なフルスタック・カンバンアプリ</p>
+        {sprintName && (
+          <Link href="/" style={styles.backLink}>
+            ← 一覧へ戻る
+          </Link>
+        )}
+        <h1 style={styles.title}>
+          {sprintName ?? '🚀 超高速フルスタック・タスクボード'}
+        </h1>
+        <p style={styles.subtitle}>
+          {sprintPeriod ?? 'End-to-End 型安全なフルスタック・カンバンアプリ'}
+        </p>
       </header>
 
       <div style={styles.board}>
@@ -56,6 +68,13 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: '100vh',
   },
   header: { marginBottom: '32px' },
+  backLink: {
+    display: 'inline-block',
+    fontSize: '14px',
+    color: '#2563eb',
+    textDecoration: 'none',
+    marginBottom: '8px',
+  },
   title: { fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0 },
   subtitle: { fontSize: '14px', color: '#64748b', marginTop: '6px' },
   board: { display: 'flex', gap: '24px', alignItems: 'flex-start' },

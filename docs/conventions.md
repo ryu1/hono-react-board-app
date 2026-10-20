@@ -9,7 +9,7 @@ hono-react-board-app/
 ├── apps/
 │   ├── backend/           # Hono API サーバー + Prisma
 │   │   ├── src/
-│   │   │   ├── db/        # DB 接続・スキーマ・シード
+│   │   │   ├── db/        # DB 接続・スキーマ
 │   │   │   ├── index.ts   # Hono アプリ + ルート定義 + AppType export
 │   │   │   ├── server.ts  # Node.js サーバー エントリーポイント
 │   │   │   └── *.test.ts  # コロケーションテスト
@@ -21,9 +21,13 @@ hono-react-board-app/
 │   ├── frontend/          # Next.js 15 App Router
 │   │   ├── app/
 │   │   │   ├── client.ts          # Hono RPC クライアント (hc)
-│   │   │   ├── actions.ts         # Server Actions (create/delete/update/move)
-│   │   │   ├── page.tsx           # RSC: ボードページ
+│   │   │   ├── actions.ts         # Server Actions (create/delete/update/move + sprint CRUD)
+│   │   │   ├── page.tsx           # RSC: スプリント一覧ページ
 │   │   │   ├── layout.tsx         # ルートレイアウト + metadata
+│   │   │   ├── not-found.tsx      # 404 ページ
+│   │   │   ├── sprints/
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx   # RSC: スプリント詳細ボードページ
 │   │   │   ├── test-setup.ts      # RTL クリーンアップ
 │   │   │   └── *.test.tsx         # ページ・アクションテスト
 │   │   ├── components/    # Client Components
@@ -31,6 +35,9 @@ hono-react-board-app/
 │   │   │   ├── Column.tsx
 │   │   │   ├── TaskCard.tsx
 │   │   │   ├── CreateForm.tsx
+│   │   │   ├── SprintList.tsx
+│   │   │   ├── SprintCreateForm.tsx
+│   │   │   ├── SprintCard.tsx
 │   │   │   └── *.test.tsx
 │   │   ├── next.config.ts
 │   │   ├── vitest.config.ts
@@ -70,6 +77,66 @@ hono-react-board-app/
 | API ルート | `apps/backend/src/index.ts` | 単一ファイルで全ルート定義 |
 | Prisma スキーマ | `apps/backend/prisma/schema.prisma` | `@zod` 注釈で Zod 生成制御 |
 
+### 1.3 追加パターン（新規コンポーネント・関数・スキーマ）
+
+命名規則は §2.2、配置先は §1.2 に従う。以下は追加時のテンプレート。
+
+#### Client Component 追加時
+```
+apps/frontend/components/{Feature}.tsx
+  └─ 'use client'
+  └─ export function {Feature}() {}
+  └─ interface {Feature}Props {}
+  └─ const styles: Record<string, React.CSSProperties> = {}
+```
+
+#### Server Action 追加時
+```
+apps/frontend/app/actions.ts
+  └─ 'use server'
+  └─ export async function {verb}{Noun}Action(formData: FormData) { ... }
+```
+
+#### RSC ページ追加時
+```
+apps/frontend/app/{route}/page.tsx
+  └─ export default async function {Route}Page() { ... }
+  └─ // デフォルトで RSC、データ取得完結
+```
+
+#### バックエンドルート追加時
+```
+apps/backend/src/index.ts
+  ├─ const {feature}Schema = z.object({ ... })
+  ├─ routes.{httpMethod}('/api/{resource}/{action}', zValidator('json', {feature}Schema), handler)
+  └─ export type AppType = typeof routes  // 自動更新
+```
+
+#### 共有スキーマ追加時
+```
+apps/backend/src/db/schema.ts
+  ├─ export const {feature}Schema = TaskModelSchema.omit({...}).extend({...})
+  └─ export type {Feature}Input = z.infer<typeof {feature}Schema>
+
+packages/shared/src/index.ts
+  └─ export { {feature}Schema } from '../../../apps/backend/src/db/schema'
+  └─ export type { {Feature}Input } from '../../../apps/backend/src/db/schema'
+```
+
+#### カスタムフック追加時
+```
+apps/frontend/hooks/use{Feature}.ts
+  └─ export function use{Feature}() { ... }
+```
+
+#### ユーティリティ関数追加時
+```
+apps/frontend/lib/{feature}.ts  (フロント固有)
+apps/backend/src/lib/{feature}.ts   (バック固有)
+packages/shared/src/{feature}.ts    (共通)
+  └─ export function {verb}{Noun}() { ... }  // 動詞+名詞
+```
+
 ---
 
 ## 2. コーディング規約
@@ -101,22 +168,92 @@ hono-react-board-app/
 
 ### 2.2 命名規則
 
-詳細: [`docs/glossary.md`](glossary.md#命名規則) を参照
+命名規則の正本。用語そのものの定義・日英対応は [`docs/glossary.md`](glossary.md) を参照。
 
 | 対象 | 規則 | 例 |
 |------|------|-----|
-| **ファイル (TS/TSX)** | kebab-case | `page.tsx`, `board.tsx`, `actions.ts` |
-| **ファイル (テスト)** | `{file}.test.{ts,tsx}` | `board.test.tsx`, `actions.test.ts` |
+| **ファイル (App Router)** | kebab-case | `page.tsx`, `actions.ts` |
+| **ファイル (Components)** | PascalCase | `Board.tsx`, `TaskCard.tsx` |
+| **ファイル (テスト)** | `{file}.test.{ts,tsx}` | `Board.test.tsx`, `actions.test.ts` |
 | **ディレクトリ** | kebab-case | `app/`, `components/`, `src/db/` |
 | **変数・関数** | camelCase | `fetchBoard`, `createTask`, `handleTaskMove` |
-| **定数** | UPPER_SNAKE_CASE | `MAX_TASKS_PER_COLUMN` |
+| **定数** | UPPER_SNAKE_CASE (モジュールスコープ) | `MAX_TASKS_PER_COLUMN` |
 | **型・インターフェース** | PascalCase | `Task`, `BoardProps`, `CreateTaskInput` |
 | **型パラメータ** | PascalCase (単一文字可) | `T`, `TData`, `TError` |
 | **React Components** | PascalCase | `Board`, `TaskCard`, `CreateForm` |
-| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction` |
+| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction`, `updateTaskAction`, `createSprintAction`, `updateSprintAction`, `deleteSprintAction` |
 | **カスタムフック** | `use` + PascalCase | `useBoard`, `useOptimisticTasks` |
 | **Zod スキーマ** | `*Schema` suffix | `insertTaskSchema`, `moveTaskSchema` |
 | **RPC クライアントメソッド** | `$` prefix (Hono 標準) | `$get()`, `$post()`, `$patch()` |
+
+#### 2.2.1 ファイル・ディレクトリ
+
+| 対象 | 規則 | 正例 | 誤例 |
+|------|------|------|------|
+| **TypeScript ファイル (App Router)** | kebab-case | `page.tsx`, `layout.tsx`, `actions.ts` | `Page.tsx`, `Actions.ts` |
+| **TypeScript ファイル (Components)** | PascalCase | `Board.tsx`, `TaskCard.tsx` | `board.tsx`, `taskCard.tsx` |
+| **テストファイル** | `{file}.test.{ts,tsx}` | `Board.test.tsx`, `actions.test.ts` | `Board.spec.tsx` |
+| **ディレクトリ** | kebab-case | `app/`, `components/`, `src/db/` | `app/`, `src/DB/` |
+| **設定ファイル** | kebab-case + `.config` | `next.config.ts`, `vitest.config.ts` | `nextConfig.ts` |
+
+#### 2.2.2 変数・関数・定数
+
+| 対象 | 規則 | 正例 | 誤例 |
+|------|------|------|------|
+| **変数・関数** | camelCase | `fetchBoard`, `createTask`, `handleTaskMove` | `fetch_board`, `create_task` |
+| **定数 (モジュールスコープ)** | UPPER_SNAKE_CASE | `MAX_TASKS_PER_COLUMN`, `DEFAULT_COLUMNS` | `maxTasksPerColumn` |
+| **定数 (ローカル/オブジェクトプロパティ)** | camelCase | `const styles = { container: ... }` | `const STYLES = { CONTAINER: ... }` |
+| **ブール変数・関数** | `is`/`has`/`can`/`should` + PascalCase | `isLoading`, `hasError`, `canEdit`, `shouldValidate` | `loading`, `errorFlag` |
+| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction`, `updateTaskAction`, `createSprintAction`, `updateSprintAction`, `deleteSprintAction` | `create_task_action` |
+
+#### 2.2.3 型・インターフェース・Enum 代替
+
+| 対象 | 規則 | 正例 | 誤例 |
+|------|------|------|------|
+| **Interface / Type** | PascalCase | `Task`, `BoardProps`, `CreateTaskInput` | `task`, `board_props` |
+| **Type Parameter** | PascalCase (単一文字可) | `T`, `TData`, `TError`, `TResponse` | `t`, `data`, `error` |
+| **Enum 代替 (const オブジェクト)** | PascalCase + `as const` | `const TaskStatus = { Todo: 'todo', ... } as const` | `enum TaskStatus { ... }` |
+
+#### 2.2.4 React / Next.js 固有
+
+| 対象 | 規則 | 正例 | 誤例 |
+|------|------|------|------|
+| **RSC (デフォルト)** | PascalCase | `function BoardPage() {}` | `const BoardPage = () => {}` |
+| **Client Component** | PascalCase + `'use client'` | `function Board() {}` | `function board() {}` |
+| **Props 型** | `ComponentName` + `Props` | `interface BoardProps {}` | `interface Props {}` |
+| **カスタムフック** | `use` + PascalCase | `useBoard`, `useOptimisticTasks` | `use_board`, `useBoardData` |
+| **イベントハンドラ** | `handle` + PascalCase / `on` + PascalCase | `handleDragStart`, `onDrop`, `handleClick` | `dragStart`, `on_drop` |
+| **Ref** | `xxxRef` (camelCase) | `const inputRef = useRef()` | `const input_ref = useRef()` |
+| **`useActionState` 戻り値** | `[state, action, isPending]` | `const [state, action, isPending] = useActionState(fn)` | 任意の名前 |
+
+#### 2.2.5 Zod スキーマ・バリデーション
+
+| 対象 | 規則 | 正例 | 誤例 |
+|------|------|------|------|
+| **スキーマ変数** | `*Schema` suffix (camelCase) | `insertTaskSchema`, `moveTaskSchema`, `updateTaskSchema` | `InsertTaskSchema`, `taskSchema` |
+| **推論型** | `z.infer<typeof xxxSchema>` | `CreateTaskInput`, `MoveTaskInput` | `InsertTaskType` |
+
+#### 2.2.6 Hono RPC 固有
+
+| 対象 | 規則 | 正例 | 備考 |
+|------|------|------|------|
+| **RPC メソッド** | `$` prefix + HTTP メソッド小文字 | `$get()`, `$post()`, `$patch()`, `$put()`, `$delete()` | Hono 標準 |
+| **パスパラメータ** | `:paramName` | `/api/tasks/:id` | `:id` 部分 |
+| **クエリパラメータ** | `?key=value` | 未使用 | 将来拡張 |
+
+#### 2.2.7 禁止・避ける識別子
+
+| 避ける表現 | 推奨表現 | 理由 |
+|------------|----------|------|
+| `data` (汎用的すぎる) | `boardData`, `taskList`, `columns` 等具体名 | 意図不明確 |
+| `item` / `element` | `task`, `column`, `card` | ドメイン用語使用 |
+| `handle` / `process` (動詞のみ) | `handleDragStart`, `processTaskCreation` | 目的語セットで |
+| `util` / `helper` (ディレクトリ名) | `lib` / `hooks` / 機能名 | 役割明確化 |
+| `type` / `kind` (区別フィールド) | `intent` (action 種別), `status` (状態) | 意味明確化 |
+| `flag` / `flg` | `isEditing`, `hasError` | ブールは `is`/`has`/`can`/`should` |
+| `tmp` / `temp` | 用途名 | 一時変数でも意図を名前に |
+| `loader` / `action` (React Router 用語) | `page.tsx` (RSC), `actions.ts` (Server Actions) | Next.js 用語に統一 |
+| `useFetcher` / `useFetchers` | `useActionState` | React 19 標準フック使用 |
 
 ### 2.3 インポート順序
 
@@ -175,6 +312,8 @@ import type { AppType } from './index'
 
 ### 3.2 テスト命名・構造
 
+ユースケース駆動設計（UCDD）に基づき、テストは [`docs/usecases.md`](usecases.md) の事前条件・事後条件・基本/代替/例外フローに対応させて記述する。E2E テストは UC 単位でシナリオを構成する。
+
 ```typescript
 // describe ブロック: 機能単位
 describe('insertTaskSchema', () => {
@@ -182,7 +321,17 @@ describe('insertTaskSchema', () => {
   it('タイトルが空の場合、バリデーションエラーになる', () => { ... })
   it('有効なタスクデータの場合、パース成功する', () => { ... })
 })
+
+// E2E: UC 単位のシナリオ（例: UC-002 タスク作成）
+test('UC-002: タイトルを入力して追加するとタスクが作成される', async ({ page }) => { ... })
+test('UC-002: タイトルが空の場合、エラーが表示され作成されない', async ({ page }) => { ... })
 ```
+
+| 対象 | 記述元 | ルール |
+|------|--------|--------|
+| 単体・統合テスト | `usecases.md` の代替/例外フロー | フロー ID（例: 2a, 7a）に対応する振る舞いを `it` で表現 |
+| E2E テスト | `usecases.md` の基本フロー | UC ID（例: `UC-002`）をテスト名に含める |
+| 完了条件 | `usecases.md` の事後条件 | タスクの完了には対応 UC の事後条件を表明するテストの合格を含める |
 
 ### 3.3 テスト原則 (TDD 必須)
 
@@ -276,9 +425,8 @@ cd hono-react-board-app
 # 3. 依存インストール (pnpm workspace + Prisma generate 自動実行)
 pnpm install
 
-# 4. DB マイグレーション + シード
+# 4. DB マイグレーション
 pnpm --filter backend db:push
-pnpm --filter backend db:seed
 
 # 5. 開発サーバー起動
 pnpm dev
@@ -298,6 +446,9 @@ pnpm dev
 | `pnpm test:e2e` | Playwright E2E テスト |
 | `pnpm typecheck` | 全パッケージ `tsc --noEmit` |
 | `pnpm lint` | Next.js 標準リント (`next lint`) |
+| `pnpm --filter backend db:push` | Prisma スキーマ反映 (`prisma db push`) |
+| `pnpm --filter backend db:generate` | Prisma Client 生成 (`prisma generate`) |
+| `pnpm --filter backend db:migrate` | マイグレーション実行 (`prisma migrate dev`, 将来) |
 
 ### 5.3 ビルド・本番確認
 
@@ -390,7 +541,7 @@ flowchart LR
 | 認証・暗号化・権限 | `docs/security.md` |
 | 運用・障害対応 | `docs/operations.md` |
 | レビュー観点・PR プロセス | `docs/review.md` |
-| 新用語・命名規則 | `docs/glossary.md` |
+| 新ドメイン用語 | `docs/glossary.md` |
 | リポジトリ概要・リンク | `README.md` |
 
 ---

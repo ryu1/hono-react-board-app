@@ -50,11 +50,7 @@
 
 ### 4.1 バックエンド (単一正本: `docs/api.md`)
 
-| エンドポイント | バリデーション | 実装 |
-|----------------|----------------|------|
-| `POST /api/tasks` | `insertTaskSchema` (Zod) | `@hono/zod-validator` で自動適用 |
-| `PATCH /api/tasks/move` | `moveTaskSchema` (Zod) | 同上 |
-| `PUT /api/tasks/update` | `updateTaskSchema` (Zod) | 同上 |
+全書き換え系エンドポイント（作成・移動・更新）に `@hono/zod-validator` + Zod スキーマを自動適用する。対象エンドポイントと適用スキーマの一覧は [`docs/api.md#3-エンドポイント一覧`](api.md#3-エンドポイント一覧) に従う。
 
 **バリデーションルール詳細**: [`docs/api.md#7-バリデーションルール詳細`](api.md#7-バリデーションルール詳細) を参照
 

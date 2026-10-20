@@ -66,8 +66,10 @@
 
 | ドキュメント | 内容 |
 |-------------|------|
-| [`docs/product.md`](docs/product.md) | プロダクトビジョン・要件・ユーザーストーリー・成功の定義 |
-| [`docs/architecture.md`](docs/architecture.md) | システム構成・データモデル・コンポーネント設計・データフロー |
+| [`docs/product.md`](docs/product.md) | プロダクトビジョン・アクター定義・要件一覧・成功の定義 |
+| [`docs/usecases.md`](docs/usecases.md) | ユースケースの振る舞いの正本 (UC-001〜UC-005・事前/事後条件・基本/代替/例外フロー) |
+| [`docs/domain_model.md`](docs/domain_model.md) | ドメインオブジェクト・ビジネスルール・タスクのライフサイクル・状態遷移 |
+| [`docs/architecture.md`](docs/architecture.md) | 堅牢性分析・システム構成・データモデル・コンポーネント設計・データフロー |
 | [`docs/design.md`](docs/design.md) | GUI デザイン・カラーパレット・タイポグラフィ・コンポーネント仕様・アクセシビリティ |
 | [`docs/api.md`](docs/api.md) | **REST API 仕様の唯一の正本** (エンドポイント・リクエスト/レスポンス・エラー・バリデーション) |
 | [`docs/tech.md`](docs/tech.md) | 技術選定理由・制約・パフォーマンス要件・ADR |
@@ -75,7 +77,7 @@
 | [`docs/security.md`](docs/security.md) | 脅威モデル・バリデーション・インジェクション対策・通信セキュリティ・既知リスク |
 | [`docs/operations.md`](docs/operations.md) | 環境変数・日常運用・ログ・障害切り分け・デプロイチェックリスト |
 | [`docs/review.md`](docs/review.md) | レビュー観点・PR プロセス・承認ルール・コメントガイドライン・セルフレビュー |
-| [`docs/glossary.md`](docs/glossary.md) | ユビキタス言語・英日対応表・命名規則パターン |
+| [`docs/glossary.md`](docs/glossary.md) | ユビキタス言語・英日対応表・技術用語・略語 |
 | [`docs/documentation-guideline.md`](docs/documentation-guideline.md) | ドキュメント作成・更新規約・完了チェックリスト |
 
 

@@ -99,6 +99,27 @@ describe('Board component', () => {
   })
 })
 
+describe('Board sprint header', () => {
+  it('renders sprint name, period, and back link when sprint props are given', () => {
+    render(
+      <Board
+        {...mockLoaderData}
+        sprintName="スプリント1"
+        sprintPeriod="2026-10-01 〜 2026-10-14"
+      />
+    )
+    expect(screen.getByRole('link', { name: '← 一覧へ戻る' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('heading', { name: 'スプリント1' })).toBeInTheDocument()
+    expect(screen.getByText('2026-10-01 〜 2026-10-14')).toBeInTheDocument()
+  })
+
+  it('renders default header when sprint props are omitted', () => {
+    render(<Board {...mockLoaderData} />)
+    expect(screen.getByRole('heading', { name: '🚀 超高速フルスタック・タスクボード' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '← 一覧へ戻る' })).not.toBeInTheDocument()
+  })
+})
+
 describe('Board interaction tests', () => {
   it('submits a new task when the create form is submitted', async () => {
     const user = userEvent.setup()

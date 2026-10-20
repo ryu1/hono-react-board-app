@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { insertTaskSchema } from './index'
+import { insertTaskSchema, insertSprintSchema } from './index'
 
 describe('shared schemas', () => {
   it('insertTaskSchema rejects empty title', () => {
@@ -20,5 +20,12 @@ describe('shared schemas', () => {
       position: 0,
     })
     expect(result.success).toBe(true)
+  })
+
+  it('insertSprintSchema rejects inverted dates', () => {
+    const result = insertSprintSchema.safeParse({
+      id: 's1', name: 'Sprint', startDate: '2026-10-14', endDate: '2026-10-01',
+    })
+    expect(result.success).toBe(false)
   })
 })

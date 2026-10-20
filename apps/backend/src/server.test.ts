@@ -40,7 +40,7 @@ describe('HTTP server bootstrap (src/server.ts)', () => {
         )
       }
       try {
-        const res = await fetch(`${BASE}/api/board`)
+        const res = await fetch(`${BASE}/api/sprints`)
         if (res.ok) return
         lastError = `status ${res.status}`
       } catch (err) {
@@ -55,15 +55,10 @@ describe('HTTP server bootstrap (src/server.ts)', () => {
     proc?.kill('SIGTERM')
   })
 
-  it('serves GET /api/board over HTTP with 3 columns', async () => {
-    const res = await fetch(`${BASE}/api/board`)
+  it('serves GET /api/sprints over HTTP', async () => {
+    const res = await fetch(`${BASE}/api/sprints`)
     expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.columns).toHaveLength(3)
-    expect(data.columns.map((c: { id: string }) => c.id)).toEqual([
-      'col-todo',
-      'col-progress',
-      'col-done',
-    ])
+    expect(Array.isArray(data)).toBe(true)
   })
 })
