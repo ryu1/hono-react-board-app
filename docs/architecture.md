@@ -573,7 +573,13 @@ classDiagram
     
     class SprintBoardResponse {
         +success: true
-        +data: { sprint: SprintListResponse, columns: Column[], tasks: Task[] }
+        +data: SprintBoardData
+    }
+
+    class SprintBoardData {
+        +sprint: SprintListResponse
+        +columns: Column[]
+        +tasks: Task[]
     }
     
     class Column {
