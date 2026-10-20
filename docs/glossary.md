@@ -6,7 +6,9 @@
 
 | 日本語 | 英語 | 定義 | コード上の表現 |
 |--------|------|------|----------------|
-| **ボード** | Board | カンバンボード全体。複数のカラムを含む | `BoardResponse` (API), `Board` (Component), `BoardProps` |
+| **スプリント** | Sprint | 名前と期間（開始日・終了日）を持ち、専用カンバンボードを所有する作業期間の単位 | `Sprint` (Model/Type), `SprintModel` (Prisma) |
+| **進捗率** | Progress | Done カラムのタスク数 ÷ 全タスク数 × 100（小数第 1 位、0 件は 0） | `progress` (API レスポンス) |
+| **ボード** | Board | 指定スプリントに属するカラムとタスクの集合体 | `BoardResponse` (API), `Board` (Component), `BoardProps` |
 | **カラム** | Column | タスクを分類する縦の列 (Todo/In Progress/Done) | `Column` (Type/Interface), `ColumnModel` (Prisma) |
 | **タスク** | Task | 作業単位。タイトル・説明・所属カラム・順序を持つ | `Task` (Type/Interface), `TaskModel` (Prisma) |
 | **カラム位置** | Column Position | カラムの左右順序 (0: Todo, 1: In Progress, 2: Done) | `Column.position`, `ColumnModel.position` |
@@ -16,7 +18,6 @@
 | **RSC** | React Server Component | サーバーでレンダリング、データ取得完結 | `page.tsx` (デフォルト) |
 | **Client Component** | Client Component | `'use client'` でクライアント側インタラクティブ化 | `components/*.tsx` |
 | **インライン編集** | Inline Editing | タスクカードクリックでその場編集モード遷移 | `useState` (編集モード), `useActionState(updateTaskAction)` |
-| **シードデータ** | Seed Data | 初回起動時に自動投入される初期カラム 3 つ | `seed.ts`, `col-todo/col-progress/col-done` |
 | **ユースケース** | Use Case | アクターとシステムの対話フロー単位の仕様。`UC-xxx` 形式で ID 付与 | `docs/usecases.md`（振る舞いの正本） |
 | **アクター** | Actor | システムの外部境界に関わる主体（ユーザー、間接アクター） | `ACT-xxx` (`docs/product.md`) |
 | **事前条件** | Pre-conditions | ユースケース開始時点で満たすべき条件 | `docs/usecases.md` 各 UC |

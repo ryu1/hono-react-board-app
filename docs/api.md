@@ -78,7 +78,11 @@ interface ServerErrorResponse {
 
 | メソッド | パス | 関連要求 ID | 対応 UC | 説明 | バリデーション |
 |----------|------|------------|---------|------|----------------|
-| `GET` | `/api/board` | F-003, FR-001 | UC-001 | 全カラム・タスク取得 | なし |
+| `GET` | `/api/sprints` | F-009, FR-001, FR-006 | UC-006 | 一覧。`startDate` 降順。各要素に集計を含む | なし |
+| `POST` | `/api/sprints` | F-010, F-007, FR-001, FR-005 | UC-007 | 作成 + 3 カラム自動生成（トランザクション） | `insertSprintSchema` |
+| `PATCH` | `/api/sprints/:id` | F-011, F-007, FR-001, FR-005 | UC-008 | 名前・期間を更新 | `updateSprintSchema` |
+| `DELETE` | `/api/sprints/:id` | F-012, FR-001, FR-005 | UC-009 | 配下カラム・タスクごと削除 | なし（404） |
+| `GET` | `/api/sprints/:id/board` | F-013, FR-001, FR-006 | UC-001 | 指定スプリントの `{ sprint, columns, tasks }` | なし（404） |
 | `POST` | `/api/tasks` | F-002, F-007, FR-001 | UC-002 | タスク作成 | `insertTaskSchema` |
 | `PATCH` | `/api/tasks/move` | F-006, FR-001 | UC-003 | タスク移動 (カラム・位置) | `moveTaskSchema` |
 | `PUT` | `/api/tasks/update` | F-004, F-007, FR-001 | UC-004 | タスク詳細更新 (タイトル・説明) | `updateTaskSchema` |
@@ -88,57 +92,54 @@ interface ServerErrorResponse {
 
 ## 4. エンドポイント詳細
 
-### 4.1 GET `/api/board`
+### 4.1 GET `/api/sprints`
 
-全カラムと全タスクを取得する。カラムは `position` 昇順、タスクは `position` 昇順で返却。
+スプリント一覧を取得する。`startDate` 降順で返却。各スプリントにタスク集計（`taskCount`, `doneCount`, `progress`）を含む。
 
 #### リクエスト
 ```http
-GET /api/board HTTP/1.1
+GET /api/sprints HTTP/1.1
 Host: localhost:3001
 Accept: application/json
 ```
 
 #### レスポンス (200 OK)
 ```json
-{
-  "success": true,
-  "data": {
-    "columns": [
-      { "id": "col-todo", "title": "Todo 📝", "position": 0 },
-      { "id": "col-progress", "title": "In Progress 🚀", "position": 1 },
-      { "id": "col-done", "title": "Done ✅", "position": 2 }
-    ],
-    "tasks": [
-      { "id": "t1", "columnId": "col-todo", "title": "Task 1", "description": "desc", "position": 0 },
-      { "id": "t2", "columnId": "col-todo", "title": "Task 2", "description": null, "position": 1 }
-    ]
+[
+  {
+    "id": "sprint-1",
+    "name": "スプリント1",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-14",
+    "taskCount": 5,
+    "doneCount": 2,
+    "progress": 40.0
+  },
+  {
+    "id": "sprint-2",
+    "name": "スプリント2",
+    "startDate": "2026-09-15",
+    "endDate": "2026-09-28",
+    "taskCount": 0,
+    "doneCount": 0,
+    "progress": 0
   }
-}
+]
 ```
+
+- `progress` はサーバー側で計算。`doneCount / taskCount * 100`、小数第 1 位に丸め（`Math.round(x * 10) / 10`）。タスク 0 件は `0`
+- 400（Zod flattened errors）・404（`updateMany/deleteMany` の count チェック）は現行パターンを踏襲
 
 #### レスポンススキーマ
 ```typescript
-interface BoardResponse {
-  success: true
-  data: {
-    columns: Column[]
-    tasks: Task[]
-  }
-}
-
-interface Column {
+interface SprintListResponse {
   id: string
-  title: string
-  position: number
-}
-
-interface Task {
-  id: string
-  columnId: string
-  title: string
-  description: string | null
-  position: number
+  name: string
+  startDate: string  // YYYY-MM-DD
+  endDate: string    // YYYY-MM-DD
+  taskCount: number
+  doneCount: number
+  progress: number   // 小数第 1 位、0 件は 0
 }
 ```
 
@@ -149,7 +150,212 @@ interface Task {
 
 ---
 
-### 4.2 POST `/api/tasks`
+### 4.2 POST `/api/sprints`
+
+新規スプリントを作成し、3 カラム（Todo / In Progress / Done）をトランザクションで自動生成する。
+
+#### リクエスト
+```http
+POST /api/sprints HTTP/1.1
+Host: localhost:3001
+Content-Type: application/json
+
+{
+  "id": "uuid-v4-string",
+  "name": "スプリント1",
+  "startDate": "2026-10-01",
+  "endDate": "2026-10-14"
+}
+```
+
+#### リクエストボディスキーマ (`insertSprintSchema`)
+```typescript
+// apps/backend/src/db/schema.ts から再エクスポート
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 形式で入力してください')
+
+const insertSprintSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1, 'タイトルは必須です'),
+  startDate: isoDate,
+  endDate: isoDate,
+}).refine(data => data.startDate <= data.endDate, {
+  message: '開始日は終了日以前にしてください',
+  path: ['endDate'],
+})
+```
+
+#### レスポンス (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-v4-string",
+    "name": "スプリント1",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-14"
+  }
+}
+```
+
+#### エラーレスポンス
+| ステータス | 条件 | 内容 |
+|------------|------|------|
+| 400 | バリデーション失敗 (期間逆転/名前空/日付形式) | `{ "success": false, "error": { "formErrors": [], "fieldErrors": { "endDate": ["開始日は終了日以前にしてください"] } } }` |
+| 400 | 不正な JSON | `{ "success": false, "error": "Invalid JSON" }` |
+| 500 | DB エラー | `{ "success": false, "error": "Internal server error" }` |
+
+---
+
+### 4.3 PATCH `/api/sprints/:id`
+
+指定スプリントの名前・期間を更新する。
+
+#### リクエスト
+```http
+PATCH /api/sprints/sprint-1 HTTP/1.1
+Host: localhost:3001
+Content-Type: application/json
+
+{
+  "name": "スプリント1 (更新)",
+  "startDate": "2026-10-01",
+  "endDate": "2026-10-21"
+}
+```
+
+#### リクエストボディスキーマ (`updateSprintSchema`)
+```typescript
+// apps/backend/src/db/schema.ts から再エクスポート
+const updateSprintSchema = z.object({
+  name: z.string().min(1, 'タイトルは必須です').optional(),
+  startDate: isoDate.optional(),
+  endDate: isoDate.optional(),
+}).refine(data => {
+  if (data.startDate && data.endDate) return data.startDate <= data.endDate
+  return true
+}, {
+  message: '開始日は終了日以前にしてください',
+  path: ['endDate'],
+})
+```
+
+#### レスポンス (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "sprint-1",
+    "name": "スプリント1 (更新)",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-21"
+  }
+}
+```
+
+#### エラーレスポンス
+| ステータス | 条件 | 内容 |
+|------------|------|------|
+| 400 | バリデーション失敗 | バリデーションエラー詳細 |
+| 404 | スプリントが存在しない | `{ "success": false, "error": "Not Found" }` |
+| 500 | DB エラー | `{ "success": false, "error": "Internal server error" }` |
+
+**実装詳細**: `updateMany` で更新 → `count` で存在確認 → `findUniqueOrThrow` で最新取得
+
+---
+
+### 4.4 DELETE `/api/sprints/:id`
+
+指定スプリントを配下のカラム・タスクごと削除する（不可逆）。
+
+#### リクエスト
+```http
+DELETE /api/sprints/sprint-1 HTTP/1.1
+Host: localhost:3001
+```
+
+#### パスパラメータ
+| パラメータ | 型 | 必須 | 説明 |
+|------------|-----|------|------|
+| `id` | string | Yes | 削除対象スプリント ID |
+
+#### レスポンス (200 OK)
+```json
+{
+  "success": true,
+  "id": "sprint-1"
+}
+```
+
+#### エラーレスポンス
+| ステータス | 条件 | 内容 |
+|------------|------|------|
+| 404 | スプリントが存在しない | `{ "success": false, "error": "Not Found" }` |
+| 500 | DB エラー | `{ "success": false, "error": "Internal server error" }` |
+
+**実装詳細**: トランザクションで `task.deleteMany` → `column.deleteMany` → `sprint.delete` を実行
+
+---
+
+### 4.5 GET `/api/sprints/:id/board`
+
+指定スプリントのボードデータ（スプリント情報 + カラム + タスク）を取得する。
+
+#### リクエスト
+```http
+GET /api/sprints/sprint-1/board HTTP/1.1
+Host: localhost:3001
+Accept: application/json
+```
+
+#### レスポンス (200 OK)
+```json
+{
+  "success": true,
+  "data": {
+    "sprint": {
+      "id": "sprint-1",
+      "name": "スプリント1",
+      "startDate": "2026-10-01",
+      "endDate": "2026-10-14"
+    },
+    "columns": [
+      { "id": "col-sprint-1-todo", "title": "Todo 📝", "position": 0 },
+      { "id": "col-sprint-1-progress", "title": "In Progress 🚀", "position": 1 },
+      { "id": "col-sprint-1-done", "title": "Done ✅", "position": 2 }
+    ],
+    "tasks": [
+      { "id": "t1", "columnId": "col-sprint-1-todo", "title": "Task 1", "description": "desc", "position": 0 }
+    ]
+  }
+}
+```
+
+#### レスポンススキーマ
+```typescript
+interface SprintBoardResponse {
+  success: true
+  data: {
+    sprint: {
+      id: string
+      name: string
+      startDate: string
+      endDate: string
+    }
+    columns: Column[]
+    tasks: Task[]
+  }
+}
+```
+
+#### エラーレスポンス
+| ステータス | 条件 | 内容 |
+|------------|------|------|
+| 404 | スプリントが存在しない | `{ "success": false, "error": "Not Found" }` |
+| 500 | DB エラー | `{ "success": false, "error": "Internal server error" }` |
+
+---
+
+### 4.6 POST `/api/tasks`
 
 新規タスクを作成する。`columnId` で指定したカラムの末尾（`position = 現在のタスク数`）に追加される。クライアント側で `position` を計算して送信。
 
@@ -351,8 +557,16 @@ Host: localhost:3001
 // apps/backend/src/index.ts からエクスポートされる AppType
 type AppType = {
   api: {
-    board: {
-      $get: () => Promise<BoardResponse>
+    sprints: {
+      $get: () => Promise<SprintListResponse>
+      $post: (options: { json: CreateSprintInput }) => Promise<SprintResponse>
+      ':id': {
+        $patch: (options: { param: { id: string }, json: UpdateSprintInput }) => Promise<SprintResponse>
+        $delete: (options: { param: { id: string } }) => Promise<DeleteResponse>
+        board: {
+          $get: (options: { param: { id: string } }) => Promise<SprintBoardResponse>
+        }
+      }
     }
     tasks: {
       $post: (options: { json: CreateTaskInput }) => Promise<TaskResponse>
@@ -368,9 +582,35 @@ type AppType = {
 }
 
 // 共有スキーマ (@my-app/shared) から再エクスポート
+type CreateSprintInput = z.infer<typeof insertSprintSchema>
+type UpdateSprintInput = z.infer<typeof updateSprintSchema>
 type CreateTaskInput = z.infer<typeof insertTaskSchema>
 type MoveTaskInput = z.infer<typeof moveTaskSchema>
 type UpdateTaskInput = z.infer<typeof updateTaskSchema>
+
+interface SprintListResponse {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+  taskCount: number
+  doneCount: number
+  progress: number
+}
+
+interface SprintResponse {
+  success: true
+  data: SprintListResponse
+}
+
+interface SprintBoardResponse {
+  success: true
+  data: {
+    sprint: SprintListResponse
+    columns: Column[]
+    tasks: Task[]
+  }
+}
 
 interface TaskResponse {
   success: true
@@ -426,6 +666,26 @@ interface DeleteResponse {
 
 ## 8. データベーススキーマとの対応
 
+### 8.1 Sprint モデル (`sprints` テーブル)
+
+| API フィールド | Prisma フィールド | DB カラム | 型 | 備考 |
+|----------------|------------------|-----------|-----|------|
+| `id` | `id` | `id` | TEXT PK | UUID v4 (クライアント生成) |
+| `name` | `name` | `name` | TEXT NOT NULL | 1 文字以上, `@zod.min(1)` |
+| `startDate` | `startDate` | `start_date` | TEXT NOT NULL | ISO 日付 (YYYY-MM-DD) |
+| `endDate` | `endDate` | `end_date` | TEXT NOT NULL | ISO 日付 (YYYY-MM-DD) |
+
+### 8.2 Column モデル (`columns` テーブル)
+
+| API フィールド | Prisma フィールド | DB カラム | 型 | 備考 |
+|----------------|------------------|-----------|-----|------|
+| `id` | `id` | `id` | TEXT PK | `col-<sprintId>-todo|-progress|-done` |
+| `title` | `title` | `title` | TEXT NOT NULL | 絵文字込み, `@zod.min(1)` |
+| `position` | `position` | `position` | INTEGER NOT NULL | 0, 1, 2 固定 |
+| `sprintId` | `sprintId` | `sprint_id` | TEXT FK | `sprints.id` 参照, `onDelete: Cascade` |
+
+### 8.3 Task モデル (`tasks` テーブル)
+
 | API フィールド | Prisma フィールド | DB カラム | 型 | 備考 |
 |----------------|------------------|-----------|-----|------|
 | `id` | `id` | `id` | TEXT PK | UUID v4 |
@@ -434,72 +694,67 @@ interface DeleteResponse {
 | `description` | `description` | `description` | TEXT NULLABLE | 長文対応 |
 | `position` | `position` | `position` | INTEGER NOT NULL | カラム内順序 |
 
-| API フィールド | Prisma フィールド | DB カラム | 型 | 備考 |
-|----------------|------------------|-----------|-----|------|
-| `id` | `id` | `id` | TEXT PK | 固定値 (`col-todo` 等) |
-| `title` | `title` | `title` | TEXT NOT NULL | 絵文字込み, `@zod.min(1)` |
-| `position` | `position` | `position` | INTEGER NOT NULL | 0, 1, 2 固定 |
-
 ---
 
-## 9. シードデータ
-
-起動時（`seed.ts`）に以下の 3 カラムをべき等的に投入（`upsert`）：
-
-```typescript
-const initialColumns = [
-  { id: 'col-todo', title: 'Todo 📝', position: 0 },
-  { id: 'col-progress', title: 'In Progress 🚀', position: 1 },
-  { id: 'col-done', title: 'Done ✅', position: 2 },
-]
-```
-
-タスクの初期データは投入しない（空状態から開始）。
-
----
-
-## 10. 今後の拡張予定
+## 9. 今後の拡張予定
 
 | 機能 | エンドポイント案 | 備考 |
 |------|------------------|------|
 | 認証追加 | `POST /api/auth/login`, `GET /api/auth/me` | JWT ベース、Hono middleware で保護 |
-| 複数ボード | `GET /api/boards`, `POST /api/boards` | `boards` テーブル追加、ルートパラメータ `/boards/:boardId` |
+| スプリント機能 | `GET /api/sprints`, `POST /api/sprints` 等 | **実装済み**（スプリント単位の複数ボード管理） |
 | タスク並び替え | `PATCH /api/tasks/reorder` | 位置正規化バッチ処理、または `@dnd-kit` 導入 |
 | WebSocket 同期 | `GET /api/ws` | Hono `ws` ミドルウェア、Next.js リアルタイム更新 |
 
 ---
 
-## 11. テスト用サンプルリクエスト
+## 10. テスト用サンプルリクエスト
 
-### 11.1 タスク作成
+### 10.1 スプリント一覧取得
+```bash
+curl http://localhost:3001/api/sprints
+```
+
+### 10.2 スプリント作成
+```bash
+curl -X POST http://localhost:3001/api/sprints \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "test-sprint-1",
+    "name": "Test Sprint",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-14"
+  }'
+```
+
+### 10.3 スプリントボード取得
+```bash
+curl http://localhost:3001/api/sprints/test-sprint-1/board
+```
+
+### 10.4 タスク作成
 ```bash
 curl -X POST http://localhost:3001/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "id": "test-task-1",
-    "columnId": "col-todo",
+    "columnId": "col-test-sprint-1-todo",
     "title": "Test Task",
     "position": 0
   }'
 ```
 
-### 11.2 ボード取得
-```bash
-curl http://localhost:3001/api/board
-```
-
-### 11.3 タスク移動
+### 10.5 タスク移動
 ```bash
 curl -X PATCH http://localhost:3001/api/tasks/move \
   -H "Content-Type: application/json" \
   -d '{
     "id": "test-task-1",
-    "columnId": "col-progress",
+    "columnId": "col-test-sprint-1-progress",
     "position": 999
   }'
 ```
 
-### 11.4 タスク更新
+### 10.6 タスク更新
 ```bash
 curl -X PUT http://localhost:3001/api/tasks/update \
   -H "Content-Type: application/json" \
@@ -510,7 +765,22 @@ curl -X PUT http://localhost:3001/api/tasks/update \
   }'
 ```
 
-### 11.5 タスク削除
+### 10.7 タスク削除
 ```bash
 curl -X DELETE http://localhost:3001/api/tasks/test-task-1
+```
+
+### 10.8 スプリント更新
+```bash
+curl -X PATCH http://localhost:3001/api/sprints/test-sprint-1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Sprint",
+    "endDate": "2026-10-21"
+  }'
+```
+
+### 10.9 スプリント削除
+```bash
+curl -X DELETE http://localhost:3001/api/sprints/test-sprint-1
 ```

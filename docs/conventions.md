@@ -9,7 +9,7 @@ hono-react-board-app/
 ├── apps/
 │   ├── backend/           # Hono API サーバー + Prisma
 │   │   ├── src/
-│   │   │   ├── db/        # DB 接続・スキーマ・シード
+│   │   │   ├── db/        # DB 接続・スキーマ
 │   │   │   ├── index.ts   # Hono アプリ + ルート定義 + AppType export
 │   │   │   ├── server.ts  # Node.js サーバー エントリーポイント
 │   │   │   └── *.test.ts  # コロケーションテスト
@@ -21,9 +21,13 @@ hono-react-board-app/
 │   ├── frontend/          # Next.js 15 App Router
 │   │   ├── app/
 │   │   │   ├── client.ts          # Hono RPC クライアント (hc)
-│   │   │   ├── actions.ts         # Server Actions (create/delete/update/move)
-│   │   │   ├── page.tsx           # RSC: ボードページ
+│   │   │   ├── actions.ts         # Server Actions (create/delete/update/move + sprint CRUD)
+│   │   │   ├── page.tsx           # RSC: スプリント一覧ページ
 │   │   │   ├── layout.tsx         # ルートレイアウト + metadata
+│   │   │   ├── not-found.tsx      # 404 ページ
+│   │   │   ├── sprints/
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx   # RSC: スプリント詳細ボードページ
 │   │   │   ├── test-setup.ts      # RTL クリーンアップ
 │   │   │   └── *.test.tsx         # ページ・アクションテスト
 │   │   ├── components/    # Client Components
@@ -31,6 +35,9 @@ hono-react-board-app/
 │   │   │   ├── Column.tsx
 │   │   │   ├── TaskCard.tsx
 │   │   │   ├── CreateForm.tsx
+│   │   │   ├── SprintList.tsx
+│   │   │   ├── SprintCreateForm.tsx
+│   │   │   ├── SprintCard.tsx
 │   │   │   └── *.test.tsx
 │   │   ├── next.config.ts
 │   │   ├── vitest.config.ts
@@ -174,7 +181,7 @@ packages/shared/src/{feature}.ts    (共通)
 | **型・インターフェース** | PascalCase | `Task`, `BoardProps`, `CreateTaskInput` |
 | **型パラメータ** | PascalCase (単一文字可) | `T`, `TData`, `TError` |
 | **React Components** | PascalCase | `Board`, `TaskCard`, `CreateForm` |
-| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction` |
+| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction`, `updateTaskAction`, `createSprintAction`, `updateSprintAction`, `deleteSprintAction` |
 | **カスタムフック** | `use` + PascalCase | `useBoard`, `useOptimisticTasks` |
 | **Zod スキーマ** | `*Schema` suffix | `insertTaskSchema`, `moveTaskSchema` |
 | **RPC クライアントメソッド** | `$` prefix (Hono 標準) | `$get()`, `$post()`, `$patch()` |
@@ -197,7 +204,7 @@ packages/shared/src/{feature}.ts    (共通)
 | **定数 (モジュールスコープ)** | UPPER_SNAKE_CASE | `MAX_TASKS_PER_COLUMN`, `DEFAULT_COLUMNS` | `maxTasksPerColumn` |
 | **定数 (ローカル/オブジェクトプロパティ)** | camelCase | `const styles = { container: ... }` | `const STYLES = { CONTAINER: ... }` |
 | **ブール変数・関数** | `is`/`has`/`can`/`should` + PascalCase | `isLoading`, `hasError`, `canEdit`, `shouldValidate` | `loading`, `errorFlag` |
-| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction`, `updateTaskAction` | `create_task_action` |
+| **Server Actions** | `{verb}{Noun}Action` | `createTaskAction`, `moveTaskAction`, `updateTaskAction`, `createSprintAction`, `updateSprintAction`, `deleteSprintAction` | `create_task_action` |
 
 #### 2.2.3 型・インターフェース・Enum 代替
 
@@ -418,9 +425,8 @@ cd hono-react-board-app
 # 3. 依存インストール (pnpm workspace + Prisma generate 自動実行)
 pnpm install
 
-# 4. DB マイグレーション + シード
+# 4. DB マイグレーション
 pnpm --filter backend db:push
-pnpm --filter backend db:seed
 
 # 5. 開発サーバー起動
 pnpm dev
@@ -442,7 +448,6 @@ pnpm dev
 | `pnpm lint` | Next.js 標準リント (`next lint`) |
 | `pnpm --filter backend db:push` | Prisma スキーマ反映 (`prisma db push`) |
 | `pnpm --filter backend db:generate` | Prisma Client 生成 (`prisma generate`) |
-| `pnpm --filter backend db:seed` | シード投入（初期データ作成） |
 | `pnpm --filter backend db:migrate` | マイグレーション実行 (`prisma migrate dev`, 将来) |
 
 ### 5.3 ビルド・本番確認

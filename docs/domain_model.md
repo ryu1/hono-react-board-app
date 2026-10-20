@@ -5,16 +5,25 @@
 
 ## 1. ドメイン概要
 
-本システムはカンバンボードを管理する。ドメインの中核概念は **カラム（Column）** と **タスク（Task）** の 2 つであり、タスクは必ず 1 つのカラムに所属し、カラム内で順序を持つ。
+本システムは**スプリント（Sprint）単位でカンバンボードを管理する**。ドメインの中核概念は **スプリント（Sprint）**、**カラム（Column）**、**タスク（Task）** の 3 つであり、スプリントは名前と期間（開始日・終了日）を持ち、専用のカラム群を所有する。タスクは必ず 1 つのカラムに所属し、カラム内で順序を持つ。
 
-- **ボード（Board）**: カラムとタスクの集合体。独立エンティティではなく、`Column` 群 + `Task` 群の論理的な集約として扱う
-- **カラム（Column）**: タスクを分類する縦の列（Todo / In Progress / Done）。固定 3 つ
+- **スプリント（Sprint）**: 名前と期間（開始日・終了日）を持ち、専用カンバンボードを所有する作業期間の単位
+- **ボード（Board）**: 指定スプリントに属する Column 群 + Task 群の論理的集約。独立エンティティではなく、スプリントに従属する論理的な集約として扱う
+- **カラム（Column）**: タスクを分類する縦の列（Todo / In Progress / Done）。固定 3 つ、スプリント毎に生成
 - **タスク（Task）**: 作業単位。タイトル・説明・所属カラム・カラム内順序を持つ
 
 ## 2. ドメインオブジェクト図
 
 ```mermaid
 classDiagram
+    class Sprint {
+        <<entity>>
+        +id: string
+        +name: string
+        +startDate: string
+        +endDate: string
+    }
+
     class Board {
         <<aggregate>>
         +columns: Column[]
@@ -26,6 +35,7 @@ classDiagram
         +id: string
         +title: string
         +position: number
+        +sprintId: string
     }
 
     class Task {
@@ -37,6 +47,8 @@ classDiagram
         +position: number
     }
 
+    Sprint "1" *-- "3" Column : owns (fixed)
+    Sprint "1" *-- "1" Board : aggregate
     Board "1" *-- "3" Column : contains
     Board "1" *-- "0..*" Task : contains
     Column "1" *-- "0..*" Task : owns
@@ -45,8 +57,9 @@ classDiagram
 
 | 分類 | オブジェクト | 説明 |
 |------|-------------|------|
-| 集約ルート（論理） | `Board` | カラム群とタスク群を包含するボード全体。API レスポンス `BoardResponse` として表現 |
-| エンティティ | `Column` | 固定 ID（`col-todo` 等）を持ち、位置とタスク集合を管理する |
+| エンティティ | `Sprint` | 名前と期間（開始日・終了日）を持ち、3 カラムを所有する作業期間の単位 |
+| 集約ルート（論理） | `Board` | 指定スプリントに属するカラム群とタスク群を包含するボード全体。API レスポンス `BoardResponse` として表現 |
+| エンティティ | `Column` | スプリント毎の固定 ID（`col-<sprintId>-todo` 等）を持ち、位置とタスク集合を管理する |
 | エンティティ | `Task` | UUID ID を持ち、所属カラムと順序・内容を持つ |
 
 ## 3. ビジネスルール
@@ -54,12 +67,15 @@ classDiagram
 | ルール ID | ルール | 関連 UC |
 |-----------|--------|---------|
 | BR-D01 | タスクは必ず 1 つのカラムに所属する（`columnId` は NOT NULL FK） | UC-002, UC-003 |
-| BR-D02 | カラムは固定 3 つ（Todo / In Progress / Done）。追加・削除・改名はスコープ外 | UC-001 |
+| BR-D02 | カラムは固定 3 つ（Todo 📝 / In Progress 🚀 / Done ✅、position 0/1/2）。追加・削除・改名はスコープ外。所有者はグローバルからスプリント毎に変更 | UC-001, UC-007 |
 | BR-D03 | タスクの `title` は 1 文字以上必須。`description` は任意（null 許容） | UC-002, UC-004 |
 | BR-D04 | タスクの `position` は 0 以上の整数。カラム内の並び順を表す | UC-002, UC-003 |
 | BR-D05 | カラム削除時、配下タスクはカスケード削除される（`onDelete: Cascade`）※カラム自体の削除はスコープ外 | - |
 | BR-D06 | タスクの存在しない ID への更新・削除・移動は 404 とする（`updateMany`/`deleteMany` の `count` で判定） | UC-003, UC-004, UC-005 |
 | BR-D07 | タスク作成時の `id` はクライアントが `crypto.randomUUID()` で生成する（UUID v4） | UC-002 |
+| BR-D08 | スプリント期間は `開始日 ≤ 終了日` | UC-007, UC-008 |
+| BR-D09 | スプリント作成時に固定 3 カラム（Todo 📝 / In Progress 🚀 / Done ✅、position 0/1/2）をトランザクションで生成する | UC-007 |
+| BR-D10 | スプリント削除は配下カラム・タスクを巻き込む不可逆操作 | UC-009 |
 
 ## 4. タスクのライフサイクル・状態遷移
 
