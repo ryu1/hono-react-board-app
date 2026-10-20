@@ -52,13 +52,46 @@ graph TD
 
 ### 2.1 BCE マッピング
 
-| UC ID | Boundary（画面/境界） | Control（制御） | Entity（データ） |
-|-------|----------------------|----------------|-----------------|
-| UC-001 ボード表示 | `page.tsx` (RSC), `Board.tsx`, `Column.tsx`, `TaskCard.tsx` | `client.api.board.$get()` (RPC) | `Column`, `Task` |
-| UC-002 タスク作成 | `CreateForm.tsx` | `createTaskAction` → `POST /api/tasks` | `Task` (`insertTaskSchema`) |
-| UC-003 タスク移動 | `TaskCard.tsx` (`onDragStart`), `Column.tsx` (`onDrop`) | `moveTaskAction` → `PATCH /api/tasks/move` | `Task` (`moveTaskSchema`) |
-| UC-004 タスク編集 | `TaskCard.tsx` (インライン編集モード) | `updateTaskAction` → `PUT /api/tasks/update` | `Task` (`updateTaskSchema`) |
-| UC-005 タスク削除 | `TaskCard.tsx` (× ボタン) | `deleteTaskAction` → `DELETE /api/tasks/:id` | `Task` |
+```mermaid
+graph LR
+    subgraph B["Boundary（画面 / 外部境界）"]
+        direction TB
+        B1["UC-001 ボード表示<br/>page.tsx (RSC), Board.tsx,<br/>Column.tsx, TaskCard.tsx"]
+        B2["UC-002 タスク作成<br/>CreateForm.tsx"]
+        B3["UC-003 タスク移動<br/>TaskCard.tsx (onDragStart),<br/>Column.tsx (onDrop)"]
+        B4["UC-004 タスク編集<br/>TaskCard.tsx (インライン編集モード)"]
+        B5["UC-005 タスク削除<br/>TaskCard.tsx (× ボタン)"]
+    end
+
+    subgraph C["Control（制御）"]
+        direction TB
+        C1["client.api.board.$get() (RPC)"]
+        C2["createTaskAction<br/>→ POST /api/tasks"]
+        C3["moveTaskAction<br/>→ PATCH /api/tasks/move"]
+        C4["updateTaskAction<br/>→ PUT /api/tasks/update"]
+        C5["deleteTaskAction<br/>→ DELETE /api/tasks/:id"]
+    end
+
+    subgraph E["Entity（データ）"]
+        direction TB
+        E1["Column, Task"]
+        E2["Task (insertTaskSchema)"]
+        E3["Task (moveTaskSchema)"]
+        E4["Task (updateTaskSchema)"]
+        E5["Task"]
+    end
+
+    B1 --> C1
+    B2 --> C2
+    B3 --> C3
+    B4 --> C4
+    B5 --> C5
+    C1 --> E1
+    C2 --> E2
+    C3 --> E3
+    C4 --> E4
+    C5 --> E5
+```
 
 ### 2.2 シーケンス図：タスク移動（UC-003）
 
