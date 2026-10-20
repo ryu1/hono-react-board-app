@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
+import { Prisma } from '../generated/prisma/client'
 import { db } from './db'
 import { insertTaskSchema, insertSprintSchema, updateSprintSchema } from './db/schema'
 
@@ -34,21 +35,28 @@ const routes = app
     }
   }), async (c) => {
     const { id, name, startDate, endDate } = c.req.valid('json')
-    const sprint = await db.$transaction(async (tx) => {
-      const created = await tx.sprint.create({ data: { id, name, startDate, endDate } })
-      for (const col of sprintColumns) {
-        await tx.column.create({
-          data: {
-            id: `col-${id}-${col.suffix}`,
-            title: col.title,
-            position: col.position,
-            sprintId: created.id,
-          },
-        })
+    try {
+      const sprint = await db.$transaction(async (tx) => {
+        const created = await tx.sprint.create({ data: { id, name, startDate, endDate } })
+        for (const col of sprintColumns) {
+          await tx.column.create({
+            data: {
+              id: `col-${id}-${col.suffix}`,
+              title: col.title,
+              position: col.position,
+              sprintId: created.id,
+            },
+          })
+        }
+        return created
+      })
+      return c.json({ success: true, data: sprint })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        return c.json({ success: false, error: 'ID が重複しています' }, 400)
       }
-      return created
-    })
-    return c.json({ success: true, data: sprint })
+      throw e
+    }
   })
   .get('/api/sprints', async (c) => {
     const sprints = await db.sprint.findMany({
@@ -57,7 +65,7 @@ const routes = app
     })
     const result = sprints.map((sprint) => {
       const tasks = sprint.columns.flatMap((col) => col.tasks)
-      const doneColumn = sprint.columns.find((col) => col.position === 2)
+      const doneColumn = sprint.columns.find((col) => col.title === 'Done ✅')
       const doneCount = doneColumn
         ? tasks.filter((t) => t.columnId === doneColumn.id).length
         : 0
@@ -75,29 +83,38 @@ const routes = app
   }), async (c) => {
     const id = c.req.param('id')
     const data = c.req.valid('json')
-    const result = await db.sprint.updateMany({ where: { id }, data })
-    if (result.count === 0) {
+    const updated = await db.$transaction(async (tx) => {
+      const result = await tx.sprint.updateMany({ where: { id }, data })
+      if (result.count === 0) {
+        return null
+      }
+      return tx.sprint.findUnique({ where: { id } })
+    })
+    if (!updated) {
       return c.json({ success: false, error: 'Not Found' }, 404)
     }
-    const updated = await db.sprint.findUniqueOrThrow({ where: { id } })
     return c.json({ success: true, data: updated })
   })
   .delete('/api/sprints/:id', async (c) => {
     const id = c.req.param('id')
-    const sprint = await db.sprint.findUnique({
-      where: { id },
-      include: { columns: true },
+    const result = await db.$transaction(async (tx) => {
+      const sprint = await tx.sprint.findUnique({
+        where: { id },
+        include: { columns: true },
+      })
+      if (!sprint) {
+        return { count: 0 }
+      }
+      const columnIds = sprint.columns.map((col) => col.id)
+      await tx.task.deleteMany({ where: { columnId: { in: columnIds } } })
+      await tx.column.deleteMany({ where: { sprintId: id } })
+      const deleted = await tx.sprint.delete({ where: { id } })
+      return { count: 1, id: deleted.id }
     })
-    if (!sprint) {
+    if (result.count === 0) {
       return c.json({ success: false, error: 'Not Found' }, 404)
     }
-    const columnIds = sprint.columns.map((col) => col.id)
-    await db.$transaction([
-      db.task.deleteMany({ where: { columnId: { in: columnIds } } }),
-      db.column.deleteMany({ where: { sprintId: id } }),
-      db.sprint.delete({ where: { id } }),
-    ])
-    return c.json({ success: true, id })
+    return c.json({ success: true, id: result.id })
   })
   .get('/api/sprints/:id/board', async (c) => {
     const id = c.req.param('id')

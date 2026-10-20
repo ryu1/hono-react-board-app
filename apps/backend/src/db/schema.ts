@@ -15,6 +15,10 @@ export const insertColumnSchema = ColumnModelSchema.omit({ tasks: true, sprint: 
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 形式で入力してください')
+  .refine((date) => {
+    const d = new Date(date)
+    return d instanceof Date && !isNaN(d.getTime()) && d.toISOString().startsWith(date)
+  }, '無効な日付です')
 
 const sprintFields = SprintModelSchema.omit({ columns: true }).extend({
   startDate: isoDate,

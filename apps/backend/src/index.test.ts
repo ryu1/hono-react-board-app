@@ -240,6 +240,29 @@ describe('GET /api/sprints', () => {
     const empty = data.find((s) => s.id === 'sp-list-empty')
     expect(empty).toMatchObject({ taskCount: 0, doneCount: 0, progress: 0 })
   })
+
+  it('rounds progress to one decimal (1/3 -> 33.3, 2/3 -> 66.7)', async () => {
+    await cleanupSprints(['sp-list-round-1', 'sp-list-round-2'])
+    await createSprint({ id: 'sp-list-round-1', name: 'Round 1', startDate: '2026-02-01', endDate: '2026-02-14' })
+    await createSprint({ id: 'sp-list-round-2', name: 'Round 2', startDate: '2026-03-01', endDate: '2026-03-14' })
+    // 1 done out of 3 tasks -> 33.3%
+    await db.task.create({ data: { id: 'sp-round-1-d1', columnId: 'col-sp-list-round-1-done', title: 'D1', position: 0 } })
+    await db.task.create({ data: { id: 'sp-round-1-t1', columnId: 'col-sp-list-round-1-todo', title: 'T1', position: 0 } })
+    await db.task.create({ data: { id: 'sp-round-1-t2', columnId: 'col-sp-list-round-1-todo', title: 'T2', position: 1 } })
+    // 2 done out of 3 tasks -> 66.7%
+    await db.task.create({ data: { id: 'sp-round-2-d1', columnId: 'col-sp-list-round-2-done', title: 'D1', position: 0 } })
+    await db.task.create({ data: { id: 'sp-round-2-d2', columnId: 'col-sp-list-round-2-done', title: 'D2', position: 1 } })
+    await db.task.create({ data: { id: 'sp-round-2-t1', columnId: 'col-sp-list-round-2-todo', title: 'T1', position: 0 } })
+
+    const res = await app.request('/api/sprints')
+    expect(res.status).toBe(200)
+    const data: Array<{ id: string; taskCount: number; doneCount: number; progress: number }> = await res.json()
+
+    const round1 = data.find((s) => s.id === 'sp-list-round-1')
+    const round2 = data.find((s) => s.id === 'sp-list-round-2')
+    expect(round1).toMatchObject({ taskCount: 3, doneCount: 1, progress: 33.3 })
+    expect(round2).toMatchObject({ taskCount: 3, doneCount: 2, progress: 66.7 })
+  })
 })
 
 describe('PATCH /api/sprints/:id', () => {
@@ -339,6 +362,7 @@ afterAll(async () => {
   await cleanupSprints([
     'sp-create-1', 'sp-create-2', 'sp-create-3',
     'sp-list-a', 'sp-list-b', 'sp-list-prog', 'sp-list-empty',
+    'sp-list-round-1', 'sp-list-round-2',
     'sp-patch-1', 'sp-patch-2', 'sp-del-1',
     'sp-board-1', 'sp-board-2',
   ])

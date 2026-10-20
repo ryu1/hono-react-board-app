@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
-import { client } from '../../client'
+import { client } from '@/client'
 import Board from '@/components/Board'
+
+export const dynamic = 'force-dynamic'
 
 export default async function SprintBoardPage({
   params,

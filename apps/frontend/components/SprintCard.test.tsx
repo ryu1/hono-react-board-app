@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const mocks = vi.hoisted(() => ({
@@ -68,9 +68,10 @@ describe('SprintCard', () => {
     const user = userEvent.setup()
     render(<SprintCard sprint={sprint} />)
 
-    await user.click(screen.getByRole('button', { name: '編集' }))
-    await user.clear(screen.getByDisplayValue('スプリント1'))
-    await user.type(screen.getByDisplayValue(''), 'スプリント1改')
+    fireEvent.click(screen.getByRole('button', { name: '編集' }))
+    const nameInput = await screen.findByTestId('sprint-name-input')
+    await user.clear(nameInput)
+    await user.type(nameInput, 'スプリント1改')
     await user.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => expect(mocks.updateSprintSpy).toHaveBeenCalled())

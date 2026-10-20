@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { updateSprintAction, deleteSprintAction } from '../app/actions'
@@ -22,19 +22,27 @@ interface SprintCardProps {
 export default function SprintCard({ sprint }: SprintCardProps) {
   const [editing, setEditing] = useState(false)
 
-  const [updateState, updateAction, isUpdating] = useActionState(
+  const [_updateState, updateAction, isUpdating] = useActionState(
     async (_: unknown, formData: FormData) => {
       return await updateSprintAction(formData)
     },
     undefined
   )
 
-  const [deleteState, deleteAction, isDeleting] = useActionState(
+  const [_deleteState, deleteAction, isDeleting] = useActionState(
     async (_: unknown, formData: FormData) => {
       return await deleteSprintAction(formData)
     },
     undefined
   )
+
+  const prevIsUpdatingRef = useRef(isUpdating)
+  useEffect(() => {
+    if (prevIsUpdatingRef.current && !isUpdating && editing) {
+      setEditing(false)
+    }
+    prevIsUpdatingRef.current = isUpdating
+  }, [isUpdating, editing])
 
   if (editing) {
     return (
@@ -47,6 +55,7 @@ export default function SprintCard({ sprint }: SprintCardProps) {
           style={styles.editInput}
           aria-label="名前"
           required
+          data-testid="sprint-name-input"
         />
         <div style={{ display: 'flex', gap: '8px' }}>
           <label style={styles.dateLabel}>

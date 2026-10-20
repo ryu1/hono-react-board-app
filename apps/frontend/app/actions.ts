@@ -72,7 +72,7 @@ export async function updateSprintAction(formData: FormData) {
 
 export async function deleteSprintAction(formData: FormData) {
   const id = formData.get('id') as string
-  if (!id) return { success: false, error: 'Missing id' }
+  if (!id) return { success: false, error: 'ID がありません' }
   await client.api.sprints[':id'].$delete({ param: { id } })
   revalidatePath('/')
   return { success: true }

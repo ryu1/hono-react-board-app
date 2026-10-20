@@ -1,6 +1,8 @@
 import { client } from './client'
 import SprintList from '@/components/SprintList'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SprintListPage() {
   const res = await client.api.sprints.$get()
   if (!res.ok) {

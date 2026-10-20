@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useMemo } from 'react'
 import { useForm, getFormProps, getInputProps } from '@conform-to/react'
 import { parseWithZod } from '@conform-to/zod'
 import { insertSprintSchema } from '@my-app/shared'
@@ -14,6 +14,8 @@ export default function SprintCreateForm() {
     undefined
   )
 
+  const id = useMemo(() => crypto.randomUUID(), [])
+
   const [form, fields] = useForm({
     lastResult: formState,
     onValidate({ formData }) {
@@ -24,7 +26,7 @@ export default function SprintCreateForm() {
 
   return (
     <form action={formAction} {...getFormProps(form)} style={styles.form}>
-      <input {...getInputProps(fields.id, { type: 'hidden' })} value={crypto.randomUUID()} readOnly />
+      <input {...getInputProps(fields.id, { type: 'hidden' })} value={id} readOnly />
       <input
         {...getInputProps(fields.name, { type: 'text' })}
         placeholder="例: スプリント1"
