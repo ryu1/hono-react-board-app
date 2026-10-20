@@ -83,7 +83,7 @@ export default function SprintCard({ sprint }: SprintCardProps) {
   }
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} data-testid={`sprint-card-${sprint.id}`}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <Link href={`/sprints/${sprint.id}`} style={styles.nameLink}>

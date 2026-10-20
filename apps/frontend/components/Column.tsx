@@ -35,13 +35,15 @@ export default function Column({ column, tasks, onTaskMove }: ColumnProps) {
       style={styles.column}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      data-testid={`column-${column.id}`}
+      data-column-title={column.title}
     >
       <div style={styles.columnHeader}>
         <h3 style={styles.columnTitle}>{column.title}</h3>
         <span style={styles.badge}>{tasks.length}</span>
       </div>
 
-      <div style={styles.taskList}>
+      <div style={styles.taskList} data-testid={`column-${column.id}-tasks`}>
         {tasks.map((task) => (
           <TaskCard
             key={task.id}

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 function uniqueName(prefix: string) {
-  return `${prefix} ${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return `${prefix} ${crypto.randomUUID()}`
 }
 
 async function createSprintAndOpen(page: import('@playwright/test').Page) {
@@ -20,8 +20,15 @@ async function createSprintAndOpen(page: import('@playwright/test').Page) {
   return name
 }
 
-async function createTask(page: import('@playwright/test').Page, columnTitle: string, taskName: string) {
+async function getColumnId(page: import('@playwright/test').Page, columnTitle: string) {
   const column = page.locator(`text=${columnTitle}`).locator('..').locator('..')
+  const testId = await column.getAttribute('data-testid')
+  return testId?.replace('column-', '') || ''
+}
+
+async function createTask(page: import('@playwright/test').Page, columnTitle: string, taskName: string) {
+  const columnId = await getColumnId(page, columnTitle)
+  const column = page.getByTestId(`column-${columnId}`)
   const input = column.getByPlaceholder('+ 新しいタスク...')
   await input.fill(taskName)
   await column.getByRole('button', { name: '追加' }).click()
@@ -34,12 +41,16 @@ async function createTask(page: import('@playwright/test').Page, columnTitle: st
 async function dragTaskToColumn(page: import('@playwright/test').Page, taskName: string, targetColumnTitle: string) {
   const task = page.getByText(taskName, { exact: true }).first()
   await expect(task).toBeVisible({ timeout: 15000 })
-  const targetColumn = page.locator(`text=${targetColumnTitle}`).locator('..').locator('..')
-  await task.dragTo(targetColumn)
-  await page.waitForTimeout(2000)
+  const targetColumnId = await getColumnId(page, targetColumnTitle)
+  const targetTaskList = page.getByTestId(`column-${targetColumnId}-tasks`)
+  await task.dragTo(targetTaskList)
+  // Small wait for drag events to process and API call to fire
+  await page.waitForTimeout(1000)
+  await page.waitForLoadState('networkidle')
+  // Reload to reflect the move (Board doesn't auto-update per spec)
   await page.reload()
   await page.waitForLoadState('networkidle')
-  await expect(targetColumn.getByText(taskName, { exact: true }).first()).toBeVisible({ timeout: 10000 })
+  await expect(targetTaskList.getByText(taskName, { exact: true }).first()).toBeVisible({ timeout: 15000 })
 }
 
 test.describe('Sprint Kanban E2E', () => {
@@ -73,7 +84,8 @@ test.describe('Sprint Kanban E2E', () => {
 
   test('UC-002: タイトル空でバリデーションエラーが表示される', async ({ page }) => {
     await createSprintAndOpen(page)
-    const todoColumn = page.locator('text=Todo 📝').locator('..').locator('..')
+    const columnId = await getColumnId(page, 'Todo 📝')
+    const todoColumn = page.getByTestId(`column-${columnId}`)
     await todoColumn.getByRole('button', { name: '追加' }).click()
     await expect(page.getByText('Required')).toBeVisible({ timeout: 5000 })
   })
@@ -96,7 +108,6 @@ test.describe('Sprint Kanban E2E', () => {
     await page.waitForLoadState('networkidle')
     await page.reload()
     await page.waitForLoadState('networkidle')
-    // Progress text format: "100% (1/1)" - use regex for flexibility
     await expect(page.getByText(/100%\s*\(1\/1\)/).first()).toBeVisible({ timeout: 15000 })
   })
 
